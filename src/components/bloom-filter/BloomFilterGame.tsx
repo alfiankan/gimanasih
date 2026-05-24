@@ -1,10 +1,14 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Mail, Zap, Database, Check, X, ShieldAlert, Trophy, Play } from 'lucide-react'
+import { Card } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 
 interface BloomFilterGameProps {
   highScore: number
   setHighScore: (score: number) => void
   onComplete: () => void
+  onFinishGame?: (score: number) => void
 }
 
 interface EmailItem {
@@ -14,12 +18,13 @@ interface EmailItem {
   reason: string
 }
 
-export const BloomFilterGame: React.FC<BloomFilterGameProps> = ({ highScore, setHighScore, onComplete }) => {
+export const BloomFilterGame: React.FC<BloomFilterGameProps> = ({ highScore, setHighScore, onComplete, onFinishGame }) => {
   const [isPlaying, setIsPlaying] = useState<boolean>(false)
   const [currentEmailIdx, setCurrentEmailIdx] = useState<number>(0)
   const [score, setScore] = useState<number>(0)
   const [serverPower, setServerPower] = useState<number>(100)
   const [isGameOver, setIsGameOver] = useState<boolean>(false)
+  const [isVictory, setIsVictory] = useState<boolean>(false)
   const [gameResultMsg, setGameResultMsg] = useState<string>('')
   
   // Action status states
@@ -85,520 +90,280 @@ export const BloomFilterGame: React.FC<BloomFilterGameProps> = ({ highScore, set
 
   const handleBlock = () => {
     const isSpam = activeEmail.isSpam
-    
+    const newScore = isSpam ? score + 20 : Math.max(0, score - 30)
+    setScore(newScore)
     if (isSpam) {
-      setScore(prev => prev + 20)
       addLog(`[Success] Blocked Spam! +20 pts.`)
     } else {
-      setScore(prev => Math.max(0, prev - 30))
       addLog(`[Failure] Blocked a clean email! -30 pts. (False Positive Trap!)`)
     }
-    nextEmail()
+    nextEmail(newScore)
   }
 
   const handleDeliver = () => {
     const isSpam = activeEmail.isSpam
-    
+    const newScore = !isSpam ? score + 10 : Math.max(0, score - 40)
+    setScore(newScore)
     if (!isSpam) {
-      setScore(prev => prev + 10)
       addLog(`[Success] Delivered clean mail to Inbox! +10 pts.`)
     } else {
-      setScore(prev => Math.max(0, prev - 40))
       addLog(`[Failure] Let Spam slip into Inbox! -40 pts.`)
     }
-    nextEmail()
+    nextEmail(newScore)
   }
 
-  const nextEmail = () => {
+  const nextEmail = (currentScore: number) => {
     if (currentEmailIdx === emailQueue.length - 1) {
-      endGame(true)
+      endGame(true, currentScore)
     } else {
       setCurrentEmailIdx(prev => prev + 1)
       resetTurn()
     }
   }
 
-  const endGame = (completed: boolean) => {
+  const endGame = useCallback((completed: boolean, finalScore: number = score) => {
     setIsGameOver(true)
     setIsPlaying(false)
-    if (completed) {
-      setHighScore(score > highScore ? score : highScore)
-      setGameResultMsg(`Victory! You successfully processed the email queue with a final score of ${score} pts.`)
+    const isPass = completed && finalScore >= 50
+    setIsVictory(isPass)
+    if (isPass) {
+      setHighScore(finalScore > highScore ? finalScore : highScore)
+      setGameResultMsg(`Victory! You successfully processed the email queue with a final score of ${finalScore} pts.`)
+      if (onFinishGame) onFinishGame(finalScore)
+    } else if (completed) {
+      setGameResultMsg(`Defeat! You processed all emails, but your score of ${finalScore} pts is below the passing threshold of 50 pts. Try again!`)
     } else {
-      setGameResultMsg(`Server Crash! You ran out of CPU power because of too many heavy DB Scans. Final score: ${score} pts.`)
+      setGameResultMsg(`Server Crash! You ran out of CPU power because of too many heavy DB Scans. Final score: ${finalScore} pts.`)
     }
-  }
+  }, [score, highScore, setHighScore, onFinishGame])
 
   // Monitor server power
   useEffect(() => {
     if (serverPower <= 0 && isPlaying) {
       endGame(false)
     }
-  }, [serverPower])
+  }, [serverPower, isPlaying, endGame])
 
   const addLog = (msg: string) => {
     setLog(prev => [msg, ...prev].slice(0, 5))
   }
 
   return (
-    <div className="game-container glass">
+    <Card 
+      glass
+      className="game-container p-5 rounded-2xl border-white/5 bg-slate-950/60 select-none w-full"
+    >
       {!isPlaying && !isGameOver ? (
-        <div className="game-intro">
-          <ShieldAlert size={48} className="game-intro-icon" />
-          <h3 className="game-intro-title">Spam Defender</h3>
-          <p className="game-intro-text">
+        <div className="game-intro flex flex-col items-center text-center gap-4 py-4">
+          <ShieldAlert size={48} className="game-intro-icon text-neon-warning drop-shadow-[0_0_10px_rgba(245,158,11,0.35)] animate-pulse" />
+          <h3 className="game-intro-title text-lg font-extrabold text-foreground">Spam Defender</h3>
+          <p className="game-intro-text text-sm text-muted-foreground max-w-xs leading-relaxed">
             Blacklist spammers have invaded the mail server. You must protect the inbox!
           </p>
-          <div className="rules-card glass">
-            <span className="section-label">Rules:</span>
-            <ul>
+          <Card className="rules-card w-full rounded-xl p-4 bg-black/25 border-white/5 text-left flex flex-col gap-2">
+            <span className="section-label text-[10px] font-extrabold text-neon-secondary uppercase tracking-wider block">
+              Rules:
+            </span>
+            <ul className="list-disc pl-5 flex flex-col gap-1.5 text-xs text-muted-foreground leading-relaxed">
               <li><strong>Deliver clean mail</strong> (+10 pts) | <strong>Block spam</strong> (+20 pts).</li>
               <li><strong>Deliver spam</strong> (-40 pts) | <strong>Block clean mail</strong> (-30 pts).</li>
               <li><strong>Bloom Filter</strong> is instant and consumes <strong>0% Power</strong>, but it can trigger <strong>False Positives (Maybe YES)</strong>.</li>
               <li><strong>Database Lookup</strong> is 100% accurate, but consumes <strong>20% CPU Power</strong>.</li>
+              <li><strong>Win Condition</strong>: Reach at least <strong>50 pts</strong> and keep CPU power above <strong>0%</strong>.</li>
             </ul>
-          </div>
-          <button className="btn btn-primary start-btn" onClick={handleStartGame}>
+          </Card>
+          
+          <Button 
+            variant="neon" 
+            size="lg"
+            className="w-full rounded-2xl h-12 cursor-pointer mt-2" 
+            onClick={handleStartGame}
+          >
             <Play size={18} />
             <span>Launch Game</span>
-          </button>
+          </Button>
         </div>
       ) : isGameOver ? (
-        <div className="game-over-screen">
-          <Trophy size={48} className="trophy-icon" />
-          <h3>Game Over</h3>
-          <p className="result-msg">{gameResultMsg}</p>
-          <div className="high-score-box font-mono">
+        <div className="game-over-screen flex flex-col items-center text-center gap-4 py-4 animate-slide-up">
+          {isVictory ? (
+            <Trophy size={48} className="trophy-icon text-neon-secondary drop-shadow-[0_0_15px_rgba(16,185,129,0.5)] animate-bounce" />
+          ) : (
+            <ShieldAlert size={48} className="alert-icon text-neon-danger drop-shadow-[0_0_15px_rgba(239,68,68,0.5)] animate-pulse" />
+          )}
+          <h3 className="text-xl font-extrabold text-foreground">
+            {isVictory ? 'Victory!' : 'Server Crash'}
+          </h3>
+          <p className="result-msg text-sm text-muted-foreground leading-relaxed max-w-xs">{gameResultMsg}</p>
+          <div className="high-score-box bg-white/3 border border-white/5 px-5 py-2.5 rounded-xl text-neon-secondary font-mono font-bold text-sm select-none">
             <span>High Score: {highScore} pts</span>
           </div>
-          <div className="game-btn-row">
-            <button className="btn btn-secondary" onClick={handleStartGame}>
+          <div className="game-btn-row flex gap-2.5 w-full mt-2">
+            <Button 
+              variant="outline" 
+              className="flex-1 rounded-2xl h-11 bg-white/3 border-white/5 font-bold text-foreground cursor-pointer"
+              onClick={handleStartGame}
+            >
               Play Again
-            </button>
-            <button className="btn btn-primary" onClick={onComplete}>
+            </Button>
+            <Button 
+              variant="neon" 
+              className="flex-1 rounded-2xl h-11 cursor-pointer"
+              onClick={onComplete}
+            >
               Continue to Quiz
-            </button>
+            </Button>
           </div>
         </div>
       ) : (
-        <div className="game-board">
+        <div className="game-board flex flex-col gap-4">
           {/* Game Stats */}
-          <div className="game-stats-row">
-            <div className="game-stat">
-              <span className="stat-label">Score</span>
-              <span className="stat-value font-mono">{score}</span>
+          <div className="game-stats-row grid grid-cols-[1fr_1fr_1.5fr] gap-2.5 bg-black/25 p-3 rounded-xl border border-white/5 items-center">
+            <div className="game-stat flex flex-col">
+              <span className="stat-label text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Score</span>
+              <span className="stat-value text-base font-extrabold text-foreground font-mono">{score}</span>
             </div>
-            <div className="game-stat">
-              <span className="stat-label">Progress</span>
-              <span className="stat-value font-mono">{currentEmailIdx + 1}/10</span>
+            <div className="game-stat flex flex-col">
+              <span className="stat-label text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Progress</span>
+              <span className="stat-value text-base font-extrabold text-foreground font-mono">{currentEmailIdx + 1}/10</span>
             </div>
-            <div className="game-stat">
-              <span className="stat-label">CPU Power</span>
-              <div className="power-bar-wrapper">
+            <div className="game-stat flex flex-col gap-1">
+              <span className="stat-label text-[9px] font-bold text-muted-foreground uppercase tracking-wider">CPU Power</span>
+              <div className="power-bar-wrapper relative h-5 bg-white/5 border border-white/5 rounded-md overflow-hidden flex items-center">
                 <div 
-                  className={`power-bar ${serverPower < 40 ? 'danger' : ''}`}
+                  className={cn(
+                    "power-bar h-full bg-gradient-to-r from-neon-secondary to-neon-success transition-all duration-300",
+                    serverPower < 40 && "from-neon-danger to-red-500"
+                  )}
                   style={{ width: `${serverPower}%` }}
                 />
-                <span className="power-text font-mono">{serverPower}%</span>
+                <span className="power-text absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[10px] font-extrabold text-white font-mono leading-none">
+                  {serverPower}%
+                </span>
               </div>
             </div>
           </div>
 
           {/* Active Email Card */}
-          <div className="email-envelope-card glass animate-float">
-            <div className="envelope-header">
-              <Mail className="mail-icon" size={24} />
-              <span className="envelope-tag">Incoming Message</span>
+          <Card 
+            glass
+            className="email-envelope-card p-5 rounded-2xl border-white/5 bg-gradient-to-br from-card to-background flex flex-col gap-3.5 animate-float"
+          >
+            <div className="envelope-header flex items-center gap-2">
+              <Mail className="mail-icon text-neon-primary" size={24} />
+              <span className="envelope-tag text-[10px] font-extrabold text-muted-foreground uppercase tracking-wider">
+                Incoming Message
+              </span>
             </div>
-            <div className="envelope-body">
-              <span className="email-label">From:</span>
-              <span className="email-sender font-mono">{activeEmail.sender}</span>
+            
+            <div className="envelope-body flex flex-col">
+              <span className="email-label text-[10px] text-muted-foreground mb-0.5">From:</span>
+              <span className="email-sender text-sm font-bold text-foreground font-mono break-all">{activeEmail.sender}</span>
             </div>
 
             {/* Results of query checks */}
-            <div className="checks-results-area">
+            <div className="checks-results-area border-t border-white/5 pt-3.5 min-h-[40px] flex items-center">
               {queryPerformed === 'none' && (
-                <p className="check-instruction">Choose a checking method below to inspect the sender.</p>
+                <p className="check-instruction text-[11px] text-muted-foreground italic">
+                  Choose an inspection method below to scan the sender.
+                </p>
               )}
               
               {queryPerformed === 'bloom' && bloomOutcome && (
-                <div className={`scan-result-badge ${bloomOutcome === 'YES' ? 'maybe-spam' : 'safe'}`}>
-                  <span>Bloom Filter says: <strong>{bloomOutcome === 'YES' ? 'MAYBE SPAM (YES)' : 'DEFINITELY CLEAN (NO)'}</strong></span>
+                <div 
+                  className={cn(
+                    "scan-result-badge w-full p-2.5 rounded-lg text-xs font-bold text-center border",
+                    bloomOutcome === 'YES' 
+                      ? "bg-amber-500/10 text-amber-400 border-amber-500/25" 
+                      : "bg-emerald-500/10 text-emerald-400 border-emerald-500/25"
+                  )}
+                >
+                  <span>Bloom Filter check: <strong>{bloomOutcome === 'YES' ? 'MAYBE SPAM (YES)' : 'DEFINITELY CLEAN (NO)'}</strong></span>
                 </div>
               )}
 
               {queryPerformed === 'db' && dbOutcome !== null && (
-                <div className={`scan-result-badge ${dbOutcome ? 'spam' : 'safe'}`}>
-                  <span>Database Scan says: <strong>{dbOutcome ? 'SPAM CONFIRMED' : 'CLEAN CONFIRMED'}</strong></span>
+                <div 
+                  className={cn(
+                    "scan-result-badge w-full p-2.5 rounded-lg text-xs font-bold text-center border",
+                    dbOutcome 
+                      ? "bg-red-500/10 text-red-400 border-red-500/25" 
+                      : "bg-emerald-500/10 text-emerald-400 border-emerald-500/25"
+                  )}
+                >
+                  <span>Database Scan: <strong>{dbOutcome ? 'SPAM CONFIRMED' : 'CLEAN CONFIRMED'}</strong></span>
                 </div>
               )}
             </div>
-          </div>
+          </Card>
 
           {/* Action buttons */}
-          <div className="game-controls-section">
-            <span className="section-label">Inspection Methods</span>
-            <div className="game-btn-row">
-              <button 
-                className="btn btn-secondary control-action-btn"
+          <div className="game-controls-section flex flex-col gap-2.5">
+            <span className="section-label text-[10px] font-extrabold text-neon-secondary uppercase tracking-wider block mb-0.5">
+              Inspection Methods
+            </span>
+            <div className="game-btn-row flex gap-2">
+              <Button 
+                variant="outline"
+                className="control-action-btn flex-1 p-3 text-[11px] rounded-xl bg-white/3 border-white/5 cursor-pointer font-bold"
                 onClick={runBloomFilter}
                 disabled={queryPerformed !== 'none'}
               >
-                <Zap size={16} className="cyan" />
+                <Zap size={14} className="text-neon-secondary fill-neon-secondary/20" />
                 <span>Bloom Check (0% CPU)</span>
-              </button>
-              <button 
-                className="btn btn-secondary control-action-btn"
+              </Button>
+              <Button 
+                variant="outline"
+                className="control-action-btn flex-1 p-3 text-[11px] rounded-xl bg-white/3 border-white/5 cursor-pointer font-bold"
                 onClick={runDbScan}
                 disabled={queryPerformed === 'db' || serverPower < 20}
               >
-                <Database size={16} className="violet" />
+                <Database size={14} className="text-neon-primary fill-neon-primary/20" />
                 <span>DB Scan (20% CPU)</span>
-              </button>
+              </Button>
             </div>
 
-            <span className="section-label">Verdict Decision</span>
-            <div className="game-btn-row">
-              <button className="btn btn-secondary action-btn-block" onClick={handleBlock}>
-                <X size={16} className="red" />
+            <span className="section-label text-[10px] font-extrabold text-neon-secondary uppercase tracking-wider block mt-1 mb-0.5">
+              Verdict Decision
+            </span>
+            <div className="game-btn-row flex gap-2">
+              <Button 
+                variant="outline"
+                className="action-btn-block flex-1 rounded-xl h-11 border-red-500/30 bg-red-500/5 hover:bg-red-500/15 text-red-400 hover:text-red-300 font-bold text-xs cursor-pointer transition-all duration-200"
+                onClick={handleBlock}
+              >
+                <X size={16} className="text-neon-danger" />
                 <span>Block Sender</span>
-              </button>
-              <button className="btn btn-primary action-btn-deliver" onClick={handleDeliver}>
-                <Check size={16} className="green" />
+              </Button>
+              <Button 
+                variant="neon"
+                className="action-btn-deliver flex-1 rounded-xl h-11 bg-gradient-to-r from-neon-success to-emerald-700 text-white shadow-[0_0_15px_rgba(16,185,129,0.3)] hover:shadow-[0_0_25px_rgba(16,185,129,0.5)] font-bold text-xs cursor-pointer transition-all duration-200"
+                onClick={handleDeliver}
+              >
+                <Check size={16} />
                 <span>Deliver to Inbox</span>
-              </button>
+              </Button>
             </div>
           </div>
 
           {/* Live Action Logs */}
-          <div className="game-logs font-mono">
-            <span className="log-label">Security Logs:</span>
-            {log.length === 0 ? (
-              <p className="empty-log">[ System Idle ]</p>
-            ) : (
-              log.map((item, idx) => (
-                <p key={idx} className="log-line">{item}</p>
-              ))
-            )}
+          <div className="game-logs bg-black/30 border border-white/5 rounded-xl p-3 font-mono text-[10px] h-[120px] flex flex-col gap-1 overflow-hidden">
+            <span className="log-label text-neon-primary font-bold border-b border-white/5 pb-1 block mb-1 select-none">
+              Security Logs:
+            </span>
+            <div className="flex flex-col gap-0.5 overflow-y-auto">
+              {log.length === 0 ? (
+                <p className="empty-log text-muted-foreground select-none">[ System Idle ]</p>
+              ) : (
+                log.map((item, idx) => (
+                  <p key={idx} className="log-line text-slate-400 select-none animate-slide-up">
+                    {item}
+                  </p>
+                ))
+              )}
+            </div>
           </div>
         </div>
       )}
-
-      <style>{`
-        .game-container {
-          padding: 20px;
-          border-radius: 24px;
-          border: 1px solid var(--border-dim);
-          background: rgba(13, 20, 35, 0.45);
-        }
-
-        .game-intro, .game-over-screen {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          text-align: center;
-          gap: 16px;
-          padding: 20px 10px;
-        }
-
-        .game-intro-icon {
-          color: var(--neon-warning);
-          filter: drop-shadow(0 0 10px rgba(245,158,11,0.4));
-        }
-
-        .game-intro-title {
-          font-size: 1.3rem;
-          font-weight: 800;
-          color: var(--text-primary);
-        }
-
-        .game-intro-text {
-          font-size: 0.9rem;
-          color: var(--text-secondary);
-          max-width: 320px;
-          line-height: 1.5;
-        }
-
-        .rules-card {
-          width: 100%;
-          border-radius: 16px;
-          padding: 16px;
-          background: rgba(0,0,0,0.15);
-          text-align: left;
-          border: 1px solid var(--border-dim);
-        }
-
-        .rules-card ul {
-          padding-left: 18px;
-          display: flex;
-          flex-direction: column;
-          gap: 6px;
-          font-size: 0.8rem;
-          color: var(--text-secondary);
-        }
-
-        .start-btn {
-          width: 100%;
-          border-radius: 16px;
-        }
-
-        /* Game Over Screen */
-        .trophy-icon {
-          color: var(--neon-warning);
-          filter: drop-shadow(0 0 15px rgba(245,158,11,0.5));
-          animation: float 3s infinite ease-in-out;
-        }
-
-        .result-msg {
-          font-size: 0.95rem;
-          color: var(--text-secondary);
-          line-height: 1.5;
-          max-width: 360px;
-        }
-
-        .high-score-box {
-          background: rgba(255, 255, 255, 0.03);
-          border: 1px solid var(--border-dim);
-          padding: 10px 20px;
-          border-radius: 10px;
-          color: var(--neon-secondary);
-          font-weight: 700;
-        }
-
-        /* Board layout */
-        .game-board {
-          display: flex;
-          flex-direction: column;
-          gap: 16px;
-        }
-
-        .game-stats-row {
-          display: grid;
-          grid-template-columns: 1fr 1fr 1.5fr;
-          gap: 10px;
-          background: rgba(0,0,0,0.2);
-          padding: 12px;
-          border-radius: 14px;
-          border: 1px solid var(--border-dim);
-        }
-
-        .game-stat {
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-        }
-
-        .game-stat .stat-label {
-          font-size: 0.65rem;
-          color: var(--text-muted);
-          text-transform: uppercase;
-          font-weight: 600;
-        }
-
-        .game-stat .stat-value {
-          font-size: 1.1rem;
-          font-weight: 800;
-          color: var(--text-primary);
-        }
-
-        .power-bar-wrapper {
-          position: relative;
-          height: 20px;
-          background: rgba(255,255,255,0.05);
-          border-radius: 6px;
-          overflow: hidden;
-          border: 1px solid var(--border-dim);
-        }
-
-        .power-bar {
-          height: 100%;
-          background: linear-gradient(90deg, var(--neon-secondary), var(--neon-success));
-          width: 100%;
-          transition: width 0.3s ease;
-        }
-
-        .power-bar.danger {
-          background: linear-gradient(90deg, var(--neon-danger), #f43f5e);
-        }
-
-        .power-text {
-          position: absolute;
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-          font-size: 0.75rem;
-          font-weight: 700;
-          color: #ffffff;
-        }
-
-        /* Envelope */
-        .email-envelope-card {
-          padding: 20px;
-          border-radius: 18px;
-          border: 1px solid rgba(255,255,255,0.08);
-          background: linear-gradient(135deg, rgba(20, 27, 45, 0.7) 0%, rgba(13, 20, 35, 0.9) 100%);
-          display: flex;
-          flex-direction: column;
-          gap: 14px;
-        }
-
-        .envelope-header {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-        }
-
-        .mail-icon {
-          color: var(--neon-primary);
-        }
-
-        .envelope-tag {
-          font-size: 0.75rem;
-          font-weight: 700;
-          color: var(--text-muted);
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-        }
-
-        .envelope-body {
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-        }
-
-        .email-label {
-          font-size: 0.75rem;
-          color: var(--text-muted);
-        }
-
-        .email-sender {
-          font-size: 1rem;
-          color: #ffffff;
-          font-weight: 600;
-          word-break: break-all;
-        }
-
-        .checks-results-area {
-          border-top: 1px solid var(--border-dim);
-          padding-top: 12px;
-          min-height: 40px;
-          display: flex;
-          align-items: center;
-        }
-
-        .check-instruction {
-          font-size: 0.75rem;
-          color: var(--text-muted);
-          font-style: italic;
-        }
-
-        .scan-result-badge {
-          width: 100%;
-          padding: 10px;
-          border-radius: 8px;
-          font-size: 0.8rem;
-          text-align: center;
-        }
-
-        .scan-result-badge.safe {
-          background: rgba(16, 185, 129, 0.15);
-          color: #34d399;
-          border: 1px solid rgba(16, 185, 129, 0.3);
-        }
-
-        .scan-result-badge.maybe-spam {
-          background: rgba(245, 158, 11, 0.15);
-          color: #fbbf24;
-          border: 1px solid rgba(245, 158, 11, 0.3);
-        }
-
-        .scan-result-badge.spam {
-          background: rgba(239, 68, 68, 0.15);
-          color: #f87171;
-          border: 1px solid rgba(239, 68, 68, 0.3);
-        }
-
-        /* Controls Section */
-        .game-controls-section {
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-        }
-
-        .game-btn-row {
-          display: flex;
-          gap: 10px;
-        }
-
-        .control-action-btn {
-          flex: 1;
-          padding: 10px;
-          font-size: 0.8rem;
-          border-radius: 10px;
-        }
-
-        .control-action-btn .cyan { color: var(--neon-secondary); }
-        .control-action-btn .violet { color: var(--neon-primary); }
-
-        .action-btn-block {
-          flex: 1;
-          border-radius: 12px;
-          border: 1px solid rgba(239, 68, 68, 0.3);
-        }
-        .action-btn-block:hover {
-          background: rgba(239, 68, 68, 0.1);
-        }
-
-        .action-btn-deliver {
-          flex: 1;
-          border-radius: 12px;
-          background: linear-gradient(135deg, var(--neon-success), #047857);
-          box-shadow: var(--glow-success);
-        }
-        .action-btn-deliver:hover {
-          box-shadow: 0 0 25px rgba(16, 185, 129, 0.5);
-          transform: translateY(-1px);
-        }
-
-        .action-btn-deliver:active {
-          transform: translateY(0);
-        }
-
-        .action-btn-block .red { color: var(--neon-danger); }
-        .action-btn-deliver .green { color: #ffffff; }
-
-        /* Game security logs */
-        .game-logs {
-          background: rgba(0,0,0,0.3);
-          border: 1px solid var(--border-dim);
-          border-radius: 12px;
-          padding: 12px;
-          font-size: 0.7rem;
-          height: 120px;
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-          overflow-y: hidden;
-        }
-
-        .log-label {
-          color: var(--neon-primary);
-          font-weight: 700;
-          border-bottom: 1px solid var(--border-dim);
-          padding-bottom: 4px;
-          margin-bottom: 4px;
-          display: block;
-        }
-
-        .empty-log {
-          color: var(--text-muted);
-        }
-
-        .log-line {
-          color: var(--text-secondary);
-          animation: slide-up 0.2s ease;
-        }
-      `}</style>
-    </div>
+    </Card>
   )
 }

@@ -1,5 +1,6 @@
 import React from 'react'
-import { Compass, FolderOpen, Award, Sparkles } from 'lucide-react'
+import { Compass, FolderOpen, User, Brain } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 interface NavigationProps {
   activeTab: string
@@ -10,45 +11,59 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, setActiveTab 
   const navItems = [
     { id: 'explore', label: 'Explore', icon: Compass },
     { id: 'materials', label: 'Materials', icon: FolderOpen },
-    { id: 'achievements', label: 'Badges', icon: Award },
+    { id: 'account', label: 'Account', icon: User },
   ]
 
   return (
     <>
       {/* Bottom Nav for Mobile */}
-      <nav className="mobile-nav glass">
+      <nav className="mobile-nav fixed bottom-3 left-3 right-3 h-16 rounded-[20px] flex justify-around items-center z-50 glass shadow-2xl px-2.5 md:hidden">
         {navItems.map((item) => {
           const Icon = item.icon
           const isActive = activeTab === item.id || (item.id === 'materials' && activeTab.startsWith('lesson'))
           return (
             <button
               key={item.id}
-              className={`nav-btn ${isActive ? 'active' : ''}`}
+              className={cn(
+                "bg-none border-none text-muted-foreground flex flex-col items-center justify-center gap-1 flex-1 h-full cursor-pointer transition-all duration-200 relative",
+                isActive && "text-neon-primary"
+              )}
               onClick={() => setActiveTab(item.id)}
             >
-              <div className="icon-wrapper">
+              <div
+                className={cn(
+                  "px-4 py-1 rounded-2xl transition-all duration-200 ease-out",
+                  isActive && "bg-neon-primary/10 text-neon-primary -translate-y-0.5 shadow-[0_0_12px_rgba(139,92,246,0.3)]"
+                )}
+              >
                 <Icon size={22} strokeWidth={isActive ? 2.5 : 2} />
               </div>
-              <span className="nav-label">{item.label}</span>
+              <span className="text-[10px] font-semibold tracking-wide">{item.label}</span>
             </button>
           )
         })}
       </nav>
 
       {/* Desktop Sidebar Nav */}
-      <aside className="desktop-sidebar glass">
-        <div className="sidebar-logo">
-          <Sparkles size={24} className="logo-icon" />
-          <span className="logo-text">Gimanasih</span>
+      <aside className="desktop-sidebar hidden md:flex fixed top-0 left-0 bottom-0 w-[240px] flex-col p-6 z-50 border-r border-border/80 bg-background/95 backdrop-blur-xl">
+        <div className="sidebar-logo flex items-center gap-3 mb-10 pl-2 select-none">
+          <Brain size={24} className="logo-icon text-neon-primary drop-shadow-[0_0_8px_rgba(16,185,129,0.4)] animate-pulse" />
+          <span className="logo-text text-xl font-extrabold tracking-tight bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
+            bitbrain
+          </span>
         </div>
-        <div className="sidebar-menu">
+        
+        <div className="sidebar-menu flex flex-col gap-2 flex-grow">
           {navItems.map((item) => {
             const Icon = item.icon
             const isActive = activeTab === item.id || (item.id === 'materials' && activeTab.startsWith('lesson'))
             return (
               <button
                 key={item.id}
-                className={`sidebar-btn ${isActive ? 'active' : ''}`}
+                className={cn(
+                  "bg-transparent text-slate-400 flex items-center gap-3.5 px-4 py-3.5 rounded-xl text-sm font-semibold w-full cursor-pointer transition-all duration-200 border border-transparent hover:bg-white/5 hover:text-white hover:translate-x-1",
+                  isActive && "bg-neon-primary/10 border-neon-primary/20 text-neon-primary hover:text-neon-primary hover:bg-neon-primary/10 hover:translate-x-0 shadow-[inset_0_0_12px_rgba(139,92,246,0.05)]"
+                )}
                 onClick={() => setActiveTab(item.id)}
               >
                 <Icon size={20} />
@@ -57,164 +72,13 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, setActiveTab 
             )
           })}
         </div>
-        <div className="sidebar-footer">
-          <span className="version-tag">v1.0.0 • Mobile-first PWA</span>
+
+        <div className="sidebar-footer pt-4 border-t border-border/40">
+          <span className="version-tag text-xs text-muted-foreground select-none">
+            v1.0.0 • Mobile-first PWA
+          </span>
         </div>
       </aside>
-
-      <style>{`
-        /* Navigation Component CSS Styles */
-        .mobile-nav {
-          position: fixed;
-          bottom: 12px;
-          left: 12px;
-          right: 12px;
-          height: 64px;
-          border-radius: 20px;
-          display: flex;
-          justify-content: space-around;
-          align-items: center;
-          z-index: 1000;
-          box-shadow: var(--shadow-premium), 0 0 1px rgba(255, 255, 255, 0.2);
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          padding: 0 10px;
-        }
-
-        .nav-btn {
-          background: none;
-          border: none;
-          color: var(--text-muted);
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          gap: 4px;
-          flex: 1;
-          height: 100%;
-          cursor: pointer;
-          transition: all 0.2s ease;
-          position: relative;
-        }
-
-        .icon-wrapper {
-          padding: 4px 16px;
-          border-radius: 16px;
-          transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
-
-        .nav-btn.active {
-          color: var(--neon-primary);
-        }
-
-        .nav-btn.active .icon-wrapper {
-          background: rgba(139, 92, 246, 0.12);
-          color: var(--neon-primary);
-          transform: translateY(-2px);
-          filter: drop-shadow(0 0 6px rgba(139, 92, 246, 0.4));
-        }
-
-        .nav-label {
-          font-size: 0.65rem;
-          font-weight: 600;
-          letter-spacing: 0.02em;
-        }
-
-        /* Desktop Sidebar Navigation Styles */
-        .desktop-sidebar {
-          display: none;
-          position: fixed;
-          top: 0;
-          left: 0;
-          bottom: 0;
-          width: 240px;
-          flex-direction: column;
-          padding: 24px;
-          z-index: 1000;
-          border-right: 1px solid var(--border-dim);
-          border-top: none;
-          border-bottom: none;
-          border-left: none;
-          background: rgba(9, 13, 22, 0.85);
-        }
-
-        .sidebar-logo {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          margin-bottom: 40px;
-          padding-left: 8px;
-        }
-
-        .logo-icon {
-          color: var(--neon-primary);
-          filter: drop-shadow(0 0 8px rgba(139, 92, 246, 0.5));
-        }
-
-        .logo-text {
-          font-size: 1.25rem;
-          font-weight: 800;
-          letter-spacing: -0.03em;
-          background: linear-gradient(135deg, #ffffff 30%, var(--text-secondary));
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-        }
-
-        .sidebar-menu {
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-          flex-grow: 1;
-        }
-
-        .sidebar-btn {
-          background: none;
-          border: none;
-          color: var(--text-secondary);
-          display: flex;
-          align-items: center;
-          gap: 14px;
-          padding: 14px 16px;
-          border-radius: 12px;
-          font-size: 0.95rem;
-          font-weight: 600;
-          width: 100%;
-          cursor: pointer;
-          transition: all 0.2s ease;
-          border: 1px solid transparent;
-        }
-
-        .sidebar-btn:hover {
-          background: rgba(255, 255, 255, 0.03);
-          color: var(--text-primary);
-          transform: translateX(4px);
-        }
-
-        .sidebar-btn.active {
-          background: rgba(139, 92, 246, 0.08);
-          border-color: rgba(139, 92, 246, 0.25);
-          color: var(--neon-primary);
-          box-shadow: inset 0 0 12px rgba(139, 92, 246, 0.05);
-        }
-
-        .sidebar-footer {
-          padding-top: 16px;
-          border-top: 1px solid var(--border-dim);
-        }
-
-        .version-tag {
-          font-size: 0.75rem;
-          color: var(--text-muted);
-        }
-
-        @media (min-width: 769px) {
-          .mobile-nav {
-            display: none;
-          }
-          .desktop-sidebar {
-            display: flex;
-          }
-        }
-      `}</style>
     </>
   )
 }

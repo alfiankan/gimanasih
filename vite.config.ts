@@ -1,24 +1,27 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import tailwindcss from '@tailwindcss/vite'
+import path from 'path'
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
     react(),
+    tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'icon.svg'],
       manifest: {
-        name: 'Gimanasih - Visual Interactive Learning',
-        short_name: 'Gimanasih',
+        name: 'bitbrain',
+        short_name: 'App',
         description: 'Interactive, mobile-first PWA for visual algorithm learning',
         theme_color: '#090d16',
         background_color: '#090d16',
         display: 'standalone',
         orientation: 'portrait',
-        scope: '/gimanasih/',
-        start_url: '/gimanasih/',
+        scope: '/',
+        start_url: '/',
         icons: [
           {
             src: 'icon.svg',
@@ -30,5 +33,10 @@ export default defineConfig({
       }
     })
   ],
-  base: '/gimanasih/'
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+    },
+  },
+  base: '/'
 })

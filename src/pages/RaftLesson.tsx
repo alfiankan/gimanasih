@@ -1,15 +1,15 @@
 import React, { useState } from 'react'
 import { ArrowLeft, BookOpen, Cpu, Gamepad2, Award, Zap } from 'lucide-react'
-import { BloomFilterConcept } from '../components/bloom-filter/BloomFilterConcept'
-import { BloomFilterSimulator } from '../components/bloom-filter/BloomFilterSimulator'
-import { BloomFilterGame } from '../components/bloom-filter/BloomFilterGame'
-import { BloomFilterQuiz } from '../components/bloom-filter/BloomFilterQuiz'
+import { RaftConcept } from '../components/raft/RaftConcept'
+import { RaftSimulator } from '../components/raft/RaftSimulator'
+import { RaftGame } from '../components/raft/RaftGame'
+import { RaftQuiz } from '../components/raft/RaftQuiz'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { AuthGate } from '../components/AuthGate'
 
-interface BloomFilterLessonProps {
+interface RaftLessonProps {
   onBack: () => void
   onPass?: () => void
   currentXp: number
@@ -19,7 +19,7 @@ interface BloomFilterLessonProps {
 
 type TabType = 'concept' | 'simulator' | 'game' | 'quiz'
 
-export const BloomFilterLesson: React.FC<BloomFilterLessonProps> = ({ onBack, onPass, currentXp, onGainXp, isLoggedIn }) => {
+export const RaftLesson: React.FC<RaftLessonProps> = ({ onBack, onPass, currentXp, onGainXp, isLoggedIn }) => {
   const [activeTab, setActiveTab] = useState<TabType>('concept')
   const [quizPassed, setQuizPassed] = useState<boolean>(false)
   const [gameHighScore, setGameHighScore] = useState<number>(0)
@@ -54,10 +54,10 @@ export const BloomFilterLesson: React.FC<BloomFilterLessonProps> = ({ onBack, on
         
         <div className="lesson-header-title text-center hidden sm:block">
           <span className="lesson-category text-[9px] font-extrabold text-neon-secondary uppercase tracking-widest block mb-0.5">
-            Probabilistic Structures
+            Distributed Systems
           </span>
           <h1 className="lesson-name text-base md:text-lg font-extrabold text-foreground tracking-tight leading-none">
-            Bloom Filter
+            Raft Consensus
           </h1>
         </div>
 
@@ -80,7 +80,7 @@ export const BloomFilterLesson: React.FC<BloomFilterLessonProps> = ({ onBack, on
         </div>
       </Card>
 
-      {/* Tab Navigation & Content via Shadcn Tabs */}
+      {/* Tab Navigation & Content via Tabs */}
       <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as TabType)} className="w-full flex flex-col gap-4">
         <TabsList className="grid grid-cols-4 p-1 bg-slate-900/50 rounded-2xl border border-white/5 w-full">
           {tabs.map((tab) => {
@@ -89,7 +89,7 @@ export const BloomFilterLesson: React.FC<BloomFilterLessonProps> = ({ onBack, on
               <TabsTrigger 
                 key={tab.id} 
                 value={tab.id}
-                className="py-2.5 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 text-[10px] sm:text-xs font-semibold rounded-xl"
+                className="py-2.5 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 text-[10px] sm:text-xs font-semibold rounded-xl cursor-pointer"
               >
                 <Icon size={16} />
                 <span>{tab.label}</span>
@@ -100,16 +100,16 @@ export const BloomFilterLesson: React.FC<BloomFilterLessonProps> = ({ onBack, on
 
         <main className="lesson-content-area min-h-[380px] w-full flex flex-col">
           <TabsContent value="concept" className="mt-0">
-            <BloomFilterConcept onComplete={() => setActiveTab('simulator')} />
+            <RaftConcept onComplete={() => setActiveTab('simulator')} />
           </TabsContent>
           
           <TabsContent value="simulator" className="mt-0">
-            <BloomFilterSimulator onComplete={() => setActiveTab('game')} />
+            <RaftSimulator onComplete={() => setActiveTab('game')} />
           </TabsContent>
           
           <TabsContent value="game" className="mt-0">
             {isLoggedIn ? (
-              <BloomFilterGame 
+              <RaftGame 
                 highScore={gameHighScore} 
                 setHighScore={setGameHighScore} 
                 onComplete={() => setActiveTab('quiz')} 
@@ -127,7 +127,7 @@ export const BloomFilterLesson: React.FC<BloomFilterLessonProps> = ({ onBack, on
           
           <TabsContent value="quiz" className="mt-0">
             {isLoggedIn ? (
-              <BloomFilterQuiz 
+              <RaftQuiz 
                 quizPassed={quizPassed} 
                 setQuizPassed={(passed: boolean) => {
                   setQuizPassed(passed)

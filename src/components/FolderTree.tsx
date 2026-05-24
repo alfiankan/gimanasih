@@ -1,5 +1,7 @@
 import React, { useState } from 'react'
 import { Folder, FolderOpen, FileText, ChevronRight, Play, CheckCircle, Clock } from 'lucide-react'
+import { Card } from '@/components/ui/card'
+import { cn } from '@/lib/utils'
 
 export interface FileItem {
   id: string
@@ -52,21 +54,21 @@ export const FolderTree: React.FC<FolderTreeProps> = ({ node, onSelectFile, sear
     switch (status) {
       case 'Completed':
         return (
-          <span className="file-status completed">
+          <span className="file-status bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 text-xs font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 select-none">
             <CheckCircle size={14} />
             <span>Done</span>
           </span>
         )
       case 'In Progress':
         return (
-          <span className="file-status in-progress">
+          <span className="file-status bg-amber-500/10 text-amber-400 border border-amber-500/25 text-xs font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 select-none">
             <Clock size={14} />
             <span>Resume</span>
           </span>
         )
       default:
         return (
-          <span className="file-status not-started">
+          <span className="file-status bg-white/5 text-slate-400 border border-border/80 text-xs font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 select-none">
             <span>Start</span>
           </span>
         )
@@ -75,54 +77,67 @@ export const FolderTree: React.FC<FolderTreeProps> = ({ node, onSelectFile, sear
 
   if (!isFolder) {
     const file = node as FileItem
+    const isUnlocked = file.id === 'bloom-filter'
+    
     return (
-      <div 
-        className={`tree-file glass ${file.id === 'bloom-filter' ? 'clickable' : 'locked'}`}
-        onClick={() => file.id === 'bloom-filter' && onSelectFile(file.id)}
+      <Card
+        glass={isUnlocked}
+        onClick={() => isUnlocked && onSelectFile(file.id)}
+        className={cn(
+          "tree-file flex items-center justify-between p-3.5 rounded-xl border border-border/40 transition-all duration-200 select-none",
+          isUnlocked 
+            ? "cursor-pointer bg-slate-900/40 hover:bg-neon-primary/5 hover:border-neon-primary/35 hover:translate-x-1" 
+            : "opacity-45 cursor-not-allowed bg-black/20"
+        )}
       >
-        <div className="file-info">
-          <FileText size={18} className="file-icon" />
-          <div className="file-name-container">
-            <span className="file-name">{file.name}</span>
-            <span className="file-xp">{file.xp} XP</span>
+        <div className="file-info flex items-center gap-3">
+          <FileText size={18} className={cn("file-icon text-muted-foreground", isUnlocked && "text-neon-primary")} />
+          <div className="file-name-container flex flex-col gap-0.5">
+            <span className="file-name text-sm font-semibold text-foreground">{file.name}</span>
+            <span className="file-xp text-[10px] text-neon-secondary font-bold">{file.xp} XP</span>
           </div>
         </div>
-        <div className="file-actions">
+        <div className="file-actions flex items-center gap-2.5">
           {getStatusBadge(file.status)}
-          {file.id === 'bloom-filter' ? (
-            <Play size={14} className="play-arrow-icon" />
+          {isUnlocked ? (
+            <Play size={14} className="play-arrow-icon text-neon-primary drop-shadow-[0_0_4px_rgba(139,92,246,0.5)] fill-neon-primary" />
           ) : (
-            <span className="locked-tag">Locked</span>
+            <span className="locked-tag text-[9px] font-semibold text-muted-foreground bg-black/30 border border-white/2 px-1.5 py-0.5 rounded">
+              Locked
+            </span>
           )}
         </div>
-      </div>
+      </Card>
     )
   }
 
   const folder = node as FolderItem
   return (
-    <div className="tree-folder-wrapper">
-      <div 
-        className="tree-folder glass"
+    <div className="tree-folder-wrapper flex flex-col mb-3 animate-slide-up select-none">
+      <Card 
+        glass
         onClick={() => setIsOpen(!isOpen)}
+        className="tree-folder flex items-center justify-between p-4 rounded-xl cursor-pointer border-border/40 bg-slate-900/30 hover:bg-neon-primary/5 hover:border-neon-primary/30 transition-all duration-200"
       >
-        <div className="folder-info">
+        <div className="folder-info flex items-center gap-3">
           <ChevronRight 
             size={18} 
-            className={`chevron-icon ${isOpen ? 'open' : ''}`} 
+            className={cn("chevron-icon text-muted-foreground transition-transform duration-200", isOpen && "rotate-90")} 
           />
           {isOpen ? (
-            <FolderOpen size={20} className="folder-icon open" />
+            <FolderOpen size={20} className="folder-icon text-neon-primary" />
           ) : (
-            <Folder size={20} className="folder-icon" />
+            <Folder size={20} className="folder-icon text-neon-secondary" />
           )}
-          <span className="folder-name">{folder.name}</span>
+          <span className="folder-name text-sm font-bold text-foreground">{folder.name}</span>
         </div>
-        <span className="folder-count">{folder.children.length} topics</span>
-      </div>
+        <span className="folder-count text-[10px] font-bold text-muted-foreground bg-white/5 px-2.5 py-1 rounded-lg">
+          {folder.children.length} topics
+        </span>
+      </Card>
 
       {isOpen && (
-        <div className="folder-children">
+        <div className="folder-children pl-5 mt-2 flex flex-col gap-2 border-l border-dashed border-border/60 ml-6">
           {filteredChildren.map((child) => (
             <FolderTree 
               key={child.id} 
@@ -133,186 +148,6 @@ export const FolderTree: React.FC<FolderTreeProps> = ({ node, onSelectFile, sear
           ))}
         </div>
       )}
-
-      <style>{`
-        .tree-folder-wrapper {
-          margin-bottom: 12px;
-          animation: slide-up 0.3s ease;
-        }
-
-        .tree-folder {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 16px;
-          border-radius: 16px;
-          cursor: pointer;
-          border: 1px solid var(--border-dim);
-          background: rgba(20, 27, 45, 0.4);
-          transition: all 0.2s ease;
-        }
-
-        .tree-folder:hover {
-          background: rgba(139, 92, 246, 0.05);
-          border-color: rgba(139, 92, 246, 0.3);
-        }
-
-        .folder-info {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-        }
-
-        .chevron-icon {
-          color: var(--text-muted);
-          transition: transform 0.2s ease;
-        }
-
-        .chevron-icon.open {
-          transform: rotate(90deg);
-        }
-
-        .folder-icon {
-          color: var(--neon-secondary);
-        }
-
-        .folder-icon.open {
-          color: var(--neon-primary);
-        }
-
-        .folder-name {
-          font-weight: 700;
-          font-size: 0.95rem;
-          color: var(--text-primary);
-        }
-
-        .folder-count {
-          font-size: 0.75rem;
-          color: var(--text-muted);
-          background: rgba(255, 255, 255, 0.05);
-          padding: 4px 8px;
-          border-radius: 8px;
-        }
-
-        .folder-children {
-          padding-left: 20px;
-          margin-top: 8px;
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-          border-left: 1px dashed var(--border-dim);
-          margin-left: 25px;
-        }
-
-        /* File node styling */
-        .tree-file {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 14px 16px;
-          border-radius: 14px;
-          border: 1px solid var(--border-dim);
-          background: rgba(13, 20, 35, 0.3);
-          transition: all 0.2s ease;
-        }
-
-        .tree-file.clickable {
-          cursor: pointer;
-        }
-
-        .tree-file.clickable:hover {
-          background: rgba(139, 92, 246, 0.08);
-          border-color: rgba(139, 92, 246, 0.35);
-          transform: translateX(4px);
-        }
-
-        .tree-file.locked {
-          opacity: 0.55;
-          cursor: not-allowed;
-          background: rgba(0, 0, 0, 0.2);
-        }
-
-        .file-info {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-        }
-
-        .file-icon {
-          color: var(--text-muted);
-        }
-
-        .tree-file.clickable .file-icon {
-          color: var(--neon-primary);
-        }
-
-        .file-name-container {
-          display: flex;
-          flex-direction: column;
-          gap: 2px;
-        }
-
-        .file-name {
-          font-weight: 600;
-          font-size: 0.9rem;
-          color: var(--text-primary);
-        }
-
-        .file-xp {
-          font-size: 0.7rem;
-          color: var(--neon-secondary);
-          font-weight: 700;
-        }
-
-        .file-actions {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-        }
-
-        .file-status {
-          font-size: 0.75rem;
-          font-weight: 700;
-          padding: 4px 10px;
-          border-radius: 8px;
-          display: flex;
-          align-items: center;
-          gap: 4px;
-        }
-
-        .file-status.completed {
-          background: rgba(16, 185, 129, 0.15);
-          color: #34d399;
-          border: 1px solid rgba(16, 185, 129, 0.3);
-        }
-
-        .file-status.in-progress {
-          background: rgba(245, 158, 11, 0.15);
-          color: #fbbf24;
-          border: 1px solid rgba(245, 158, 11, 0.3);
-        }
-
-        .file-status.not-started {
-          background: rgba(255, 255, 255, 0.05);
-          color: var(--text-secondary);
-          border: 1px solid var(--border-dim);
-        }
-
-        .play-arrow-icon {
-          color: var(--neon-primary);
-          filter: drop-shadow(0 0 4px rgba(139, 92, 246, 0.5));
-        }
-
-        .locked-tag {
-          font-size: 0.7rem;
-          font-weight: 600;
-          color: var(--text-muted);
-          background: rgba(0, 0, 0, 0.15);
-          padding: 2px 6px;
-          border-radius: 4px;
-          border: 1px solid rgba(255,255,255,0.02);
-        }
-      `}</style>
     </div>
   )
 }

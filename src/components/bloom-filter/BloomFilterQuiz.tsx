@@ -1,5 +1,8 @@
 import React, { useState } from 'react'
-import { Award, Check, X, ShieldAlert, Sparkles } from 'lucide-react'
+import { Award, Check, X, ShieldAlert } from 'lucide-react'
+import { Card } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 
 interface BloomFilterQuizProps {
   quizPassed: boolean
@@ -14,7 +17,7 @@ interface Question {
   explanation: string
 }
 
-export const BloomFilterQuiz: React.FC<BloomFilterQuizProps> = ({ quizPassed: _quizPassed, setQuizPassed, onBack }) => {
+export const BloomFilterQuiz: React.FC<BloomFilterQuizProps> = ({ setQuizPassed, onBack }) => {
   const [currentQuestionIdx, setCurrentQuestionIdx] = useState<number>(0)
   const [selectedOptionIdx, setSelectedOptionIdx] = useState<number | null>(null)
   const [isAnswered, setIsAnswered] = useState<boolean>(false)
@@ -120,45 +123,66 @@ export const BloomFilterQuiz: React.FC<BloomFilterQuizProps> = ({ quizPassed: _q
   }
 
   return (
-    <div className="quiz-container glass">
+    <Card 
+      glass
+      className="quiz-container p-5 rounded-2xl border-white/5 bg-slate-950/60 select-none w-full"
+    >
       {!quizFinished ? (
-        <div className="quiz-card-wrapper">
+        <div className="quiz-card-wrapper flex flex-col gap-4">
           {/* Quiz Header Info */}
-          <div className="quiz-card-header">
-            <span className="section-label">Question {currentQuestionIdx + 1} of {questions.length}</span>
-            <span className="correct-counter font-mono">{correctAnswersCount} Correct</span>
+          <div className="quiz-card-header flex justify-between items-center">
+            <span className="section-label text-[10px] font-extrabold text-neon-secondary uppercase tracking-wider block">
+              Question {currentQuestionIdx + 1} of {questions.length}
+            </span>
+            <span className="correct-counter font-mono text-[10px] font-extrabold text-neon-secondary bg-neon-secondary/10 px-2.5 py-1 rounded-lg">
+              {correctAnswersCount} Correct
+            </span>
           </div>
 
           {/* Question Text */}
-          <h3 className="quiz-question">{activeQuestion.question}</h3>
+          <h3 className="quiz-question text-base font-extrabold text-foreground leading-normal mt-1 mb-2">
+            {activeQuestion.question}
+          </h3>
 
           {/* Options List */}
-          <div className="quiz-options-list">
+          <div className="quiz-options-list flex flex-col gap-2.5">
             {activeQuestion.options.map((option, idx) => {
-              let optionClass = ''
-              if (selectedOptionIdx === idx) optionClass += ' selected'
+              let optStyles = 'border-white/5 bg-white/2 text-slate-300 hover:border-neon-primary/30 hover:bg-neon-primary/5 hover:text-white'
+              
+              if (selectedOptionIdx === idx) {
+                optStyles = 'border-neon-primary bg-neon-primary/10 text-white font-semibold'
+              }
               
               if (isAnswered) {
                 if (idx === activeQuestion.answerIdx) {
-                  optionClass += ' correct'
+                  optStyles = 'border-neon-success bg-emerald-500/10 text-emerald-400 font-semibold'
                 } else if (selectedOptionIdx === idx) {
-                  optionClass += ' incorrect'
+                  optStyles = 'border-neon-danger bg-red-500/10 text-red-400 font-semibold'
                 } else {
-                  optionClass += ' dimmed'
+                  optStyles = 'border-white/2 bg-black/10 text-slate-500 opacity-50'
                 }
               }
 
               return (
                 <button
                   key={idx}
-                  className={`quiz-option-btn glass ${optionClass}`}
+                  className={cn(
+                    "quiz-option-btn w-full flex items-center gap-3 p-4 rounded-xl border text-sm text-left transition-all duration-250 cursor-pointer disabled:cursor-default",
+                    optStyles
+                  )}
                   onClick={() => handleOptionClick(idx)}
                   disabled={isAnswered}
                 >
-                  <span className="option-letter font-mono">{String.fromCharCode(65 + idx)}.</span>
-                  <span className="option-text">{option}</span>
-                  {isAnswered && idx === activeQuestion.answerIdx && <Check size={18} className="check-icon" />}
-                  {isAnswered && selectedOptionIdx === idx && idx !== activeQuestion.answerIdx && <X size={18} className="x-icon" />}
+                  <span className={cn(
+                    "option-letter font-mono font-extrabold text-neon-secondary",
+                    isAnswered && idx === activeQuestion.answerIdx && "text-emerald-400",
+                    isAnswered && selectedOptionIdx === idx && idx !== activeQuestion.answerIdx && "text-red-400"
+                  )}>
+                    {String.fromCharCode(65 + idx)}.
+                  </span>
+                  <span className="option-text flex-1">{option}</span>
+                  {isAnswered && idx === activeQuestion.answerIdx && <Check size={18} className="check-icon text-neon-success shrink-0" />}
+                  {isAnswered && selectedOptionIdx === idx && idx !== activeQuestion.answerIdx && <X size={18} className="x-icon text-neon-danger shrink-0" />}
                 </button>
               )
             })}
@@ -166,309 +190,89 @@ export const BloomFilterQuiz: React.FC<BloomFilterQuizProps> = ({ quizPassed: _q
 
           {/* Explanation Text */}
           {isAnswered && (
-            <div className="quiz-explanation-box glass">
-              <span className="explanation-label">Explanation:</span>
-              <p className="explanation-text">{activeQuestion.explanation}</p>
-            </div>
+            <Card className="quiz-explanation-box p-4 rounded-xl border-neon-primary/20 bg-neon-primary/5 text-xs md:text-sm leading-relaxed animate-slide-up">
+              <span className="explanation-label block font-bold text-purple-400 mb-1">Explanation:</span>
+              <p className="explanation-text text-slate-300 leading-normal">{activeQuestion.explanation}</p>
+            </Card>
           )}
 
           {/* Submit/Next controls */}
-          <div className="quiz-controls-row">
+          <div className="quiz-controls-row mt-2">
             {!isAnswered ? (
-              <button 
-                className="btn btn-primary quiz-action-btn"
+              <Button 
+                variant="neon"
+                className="w-full rounded-2xl h-11 cursor-pointer"
                 onClick={handleSubmit}
                 disabled={selectedOptionIdx === null}
               >
                 Submit Answer
-              </button>
+              </Button>
             ) : (
-              <button className="btn btn-primary quiz-action-btn" onClick={handleNext}>
+              <Button 
+                variant="neon"
+                className="w-full rounded-2xl h-11 cursor-pointer"
+                onClick={handleNext}
+              >
                 {currentQuestionIdx === questions.length - 1 ? 'Finish Quiz' : 'Next Question'}
-              </button>
+              </Button>
             )}
           </div>
         </div>
       ) : (
-        <div className="quiz-results-screen">
+        <div className="quiz-results-screen flex flex-col items-center text-center gap-4 py-4 w-full">
           {correctAnswersCount >= 4 ? (
-            <div className="success-certificate">
-              <div className="badge-aura">
-                <Award size={64} className="badge-medal animate-pulse" />
+            <div className="success-certificate flex flex-col items-center gap-4 relative w-full select-none">
+              <div className="badge-aura w-[110px] h-[110px] rounded-full bg-[radial-gradient(circle,rgba(245,158,11,0.18)_0%,transparent_70%)] flex items-center justify-center">
+                <Award size={64} className="badge-medal text-neon-warning drop-shadow-[0_0_15px_rgba(245,158,11,0.5)] animate-pulse" />
               </div>
-              <h3 className="certificate-title">Bloom Filter Master</h3>
-              <p className="certificate-score font-mono">{correctAnswersCount} / {questions.length} Correct</p>
-              <p className="certificate-desc">
+              <h3 className="certificate-title text-xl font-extrabold tracking-tight bg-gradient-to-r from-white to-amber-400 bg-clip-text text-transparent">
+                Bloom Filter Master
+              </h3>
+              <p className="certificate-score text-base font-extrabold text-neon-secondary font-mono">
+                {correctAnswersCount} / {questions.length} Correct
+              </p>
+              <p className="certificate-desc text-sm text-muted-foreground max-w-sm leading-relaxed mb-2">
                 Congratulations! You have completed the Bloom Filter lesson, mastered the math of false positives, and demonstrated server architecture safety skills.
               </p>
-              <div className="glow-particle gold-glow"></div>
-              <button className="btn btn-primary cta-finish" onClick={onBack}>
-                <Sparkles size={16} />
+              <div className="gold-glow absolute w-24 h-24 rounded-full filter blur-[50px] bg-amber-500/10 top-1/10 pointer-events-none"></div>
+              
+              <Button 
+                variant="neon" 
+                className="w-full rounded-2xl h-12 bg-gradient-to-r from-neon-warning to-amber-600 text-white shadow-[0_0_20px_rgba(245,158,11,0.3)] hover:shadow-[0_0_30px_rgba(245,158,11,0.5)] border-transparent font-bold cursor-pointer"
+                onClick={onBack}
+              >
+                <Award size={16} />
                 <span>Return to Materials</span>
-              </button>
+              </Button>
             </div>
           ) : (
-            <div className="fail-screen">
-              <ShieldAlert size={64} className="fail-icon" />
-              <h3>Quiz Not Passed</h3>
-              <p className="fail-score font-mono">{correctAnswersCount} / {questions.length} Correct</p>
-              <p className="fail-desc">
+            <div className="fail-screen flex flex-col items-center gap-4 select-none w-full">
+              <ShieldAlert size={64} className="fail-icon text-neon-danger drop-shadow-[0_0_10px_rgba(239,68,68,0.4)] animate-bounce" />
+              <h3 className="text-xl font-extrabold text-foreground">Quiz Not Passed</h3>
+              <p className="fail-score text-base font-extrabold text-neon-danger font-mono">{correctAnswersCount} / {questions.length} Correct</p>
+              <p className="fail-desc text-sm text-muted-foreground max-w-sm leading-relaxed">
                 You need at least 4 correct answers (80%) to unlock the Bloom Filter certificate. Rewatch the Concept slide details or experiment in the Sandbox simulator!
               </p>
-              <div className="game-btn-row">
-                <button className="btn btn-secondary" onClick={restartQuiz}>
+              <div className="game-btn-row flex gap-2.5 w-full mt-2">
+                <Button 
+                  variant="outline" 
+                  className="flex-1 rounded-2xl h-11 bg-white/3 border-white/5 font-bold text-foreground cursor-pointer"
+                  onClick={restartQuiz}
+                >
                   Retry Quiz
-                </button>
-                <button className="btn btn-primary" onClick={onBack}>
-                  Return to Dashboard
-                </button>
+                </Button>
+                <Button 
+                  variant="neon" 
+                  className="flex-1 rounded-2xl h-11 cursor-pointer"
+                  onClick={onBack}
+                >
+                  Dashboard
+                </Button>
               </div>
             </div>
           )}
         </div>
       )}
-
-      <style>{`
-        .quiz-container {
-          padding: 20px;
-          border-radius: 24px;
-          border: 1px solid var(--border-dim);
-          background: rgba(13, 20, 35, 0.45);
-        }
-
-        .quiz-card-wrapper {
-          display: flex;
-          flex-direction: column;
-          gap: 16px;
-        }
-
-        .quiz-card-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-        }
-
-        .correct-counter {
-          font-size: 0.75rem;
-          font-weight: 700;
-          color: var(--neon-secondary);
-          background: rgba(6, 182, 212, 0.1);
-          padding: 4px 10px;
-          border-radius: 8px;
-        }
-
-        .quiz-question {
-          font-size: 1.1rem;
-          font-weight: 800;
-          color: var(--text-primary);
-          line-height: 1.4;
-        }
-
-        .quiz-options-list {
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-        }
-
-        .quiz-option-btn {
-          width: 100%;
-          display: flex;
-          align-items: center;
-          text-align: left;
-          padding: 14px 16px;
-          border-radius: 12px;
-          cursor: pointer;
-          border: 1px solid var(--border-dim);
-          background: rgba(13, 20, 35, 0.3);
-          transition: all 0.2s ease;
-          gap: 10px;
-          color: var(--text-secondary);
-        }
-
-        .quiz-option-btn:hover:not(:disabled) {
-          border-color: rgba(139, 92, 246, 0.3);
-          background: rgba(139, 92, 246, 0.04);
-          color: var(--text-primary);
-        }
-
-        .quiz-option-btn.selected {
-          border-color: var(--neon-primary);
-          background: rgba(139, 92, 246, 0.08);
-          color: var(--text-primary);
-        }
-
-        .quiz-option-btn.correct {
-          border-color: var(--neon-success);
-          background: rgba(16, 185, 129, 0.1);
-          color: #ffffff;
-        }
-
-        .quiz-option-btn.incorrect {
-          border-color: var(--neon-danger);
-          background: rgba(239, 68, 68, 0.1);
-          color: #ffffff;
-        }
-
-        .quiz-option-btn.dimmed {
-          opacity: 0.45;
-        }
-
-        .option-letter {
-          font-weight: 800;
-          color: var(--neon-secondary);
-        }
-
-        .quiz-option-btn.correct .option-letter {
-          color: #34d399;
-        }
-
-        .quiz-option-btn.incorrect .option-letter {
-          color: #f87171;
-        }
-
-        .check-icon {
-          margin-left: auto;
-          color: var(--neon-success);
-        }
-
-        .x-icon {
-          margin-left: auto;
-          color: var(--neon-danger);
-        }
-
-        /* Explanation Box */
-        .quiz-explanation-box {
-          padding: 14px;
-          border-radius: 12px;
-          border-color: rgba(139, 92, 246, 0.2);
-          background: rgba(139, 92, 246, 0.03);
-          font-size: 0.85rem;
-          line-height: 1.45;
-          animation: slide-up 0.3s ease;
-        }
-
-        .explanation-label {
-          display: block;
-          font-weight: 700;
-          color: #a78bfa;
-          margin-bottom: 4px;
-        }
-
-        .explanation-text {
-          color: var(--text-secondary);
-        }
-
-        .quiz-action-btn {
-          width: 100%;
-          border-radius: 14px;
-        }
-
-        /* Results Certificate styles */
-        .quiz-results-screen {
-          width: 100%;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          text-align: center;
-          padding: 20px 10px;
-        }
-
-        .success-certificate {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 16px;
-          position: relative;
-          width: 100%;
-        }
-
-        .badge-aura {
-          width: 110px;
-          height: 110px;
-          border-radius: 50%;
-          background: radial-gradient(circle, rgba(245,158,11,0.2) 0%, transparent 70%);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-
-        .badge-medal {
-          color: var(--neon-warning);
-          filter: drop-shadow(0 0 15px rgba(245,158,11,0.6));
-        }
-
-        .certificate-title {
-          font-size: 1.4rem;
-          font-weight: 800;
-          letter-spacing: -0.01em;
-          background: linear-gradient(135deg, #ffffff 40%, var(--neon-warning));
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-        }
-
-        .certificate-score {
-          font-size: 1.1rem;
-          font-weight: 700;
-          color: var(--neon-secondary);
-        }
-
-        .certificate-desc {
-          font-size: 0.9rem;
-          color: var(--text-secondary);
-          max-width: 380px;
-          line-height: 1.55;
-        }
-
-        .gold-glow {
-          position: absolute;
-          width: 100px;
-          height: 100px;
-          border-radius: 50%;
-          filter: blur(50px);
-          background: var(--neon-warning);
-          opacity: 0.15;
-          top: 10%;
-          pointer-events: none;
-        }
-
-        .cta-finish {
-          width: 100%;
-          border-radius: 16px;
-          background: linear-gradient(135deg, var(--neon-warning), #d97706);
-          box-shadow: 0 0 20px rgba(245, 158, 11, 0.4);
-          color: #ffffff;
-        }
-
-        .cta-finish:hover {
-          box-shadow: 0 0 30px rgba(245, 158, 11, 0.6);
-        }
-
-        /* Fail Screen */
-        .fail-screen {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 16px;
-        }
-
-        .fail-icon {
-          color: var(--neon-danger);
-          filter: drop-shadow(0 0 10px rgba(239,68,68,0.4));
-        }
-
-        .fail-score {
-          font-size: 1.1rem;
-          color: var(--neon-danger);
-          font-weight: 700;
-        }
-
-        .fail-desc {
-          font-size: 0.9rem;
-          color: var(--text-secondary);
-          max-width: 360px;
-          line-height: 1.5;
-        }
-      `}</style>
-    </div>
+    </Card>
   )
 }
