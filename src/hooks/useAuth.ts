@@ -13,7 +13,9 @@ export interface ProgressData {
   completedLessons: string[];
 }
 
-const API_URL = 'http://localhost:8787'; // Default wrangler local dev port
+const API_URL = import.meta.env.PROD
+  ? 'https://gimanasih-backend.alfian-nur.workers.dev'
+  : 'http://localhost:8787';
 
 export const useAuth = () => {
   const [token, setToken] = useState<string | null>(localStorage.getItem('bitbrain_token'));
