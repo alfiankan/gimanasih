@@ -1,7 +1,6 @@
-import React, { useState } from 'react'
-import { Plus, Search, RefreshCw, AlertCircle, ArrowRight, CheckCircle2, HelpCircle } from 'lucide-react'
+import React, { useState, useRef } from 'react'
+import { Plus, Search, RefreshCw, AlertCircle, ArrowRight, CheckCircle2, HelpCircle, Hash, Zap } from 'lucide-react'
 import { Card } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
@@ -9,69 +8,85 @@ interface BloomFilterSimulatorProps {
   onComplete: () => void
 }
 
+interface OperationLog {
+  id: number
+  type: 'insert' | 'query'
+  word: string
+  indices: number[]
+  result?: 'def-no' | 'prob-yes' | 'actual-yes' | 'false-positive'
+  ts: string
+}
+
+const BIT_COUNT = 16
+
+const getHashA = (str: string): number => {
+  let hash = 0
+  for (let i = 0; i < str.length; i++) hash = (hash * 31 + str.charCodeAt(i)) % BIT_COUNT
+  return Math.abs(hash)
+}
+
+const getHashB = (str: string): number => {
+  let hash = 0
+  for (let i = 0; i < str.length; i++) hash = (hash * 17 + str.charCodeAt(i) + 5) % BIT_COUNT
+  return Math.abs(hash)
+}
+
+const getIndices = (str: string): number[] => {
+  if (!str) return []
+  const s = str.trim().toLowerCase()
+  const a = getHashA(s)
+  const b = getHashB(s)
+  return Array.from(new Set([a, b])) // deduplicate
+}
+
 export const BloomFilterSimulator: React.FC<BloomFilterSimulatorProps> = ({ onComplete }) => {
-  const [bitArray, setBitArray] = useState<number[]>(new Array(16).fill(0))
+  const [bitArray, setBitArray] = useState<number[]>(new Array(BIT_COUNT).fill(0))
   const [insertedItems, setInsertedItems] = useState<string[]>([])
   const [inputText, setInputText] = useState<string>('')
-  
-  // Simulation details
   const [lastAction, setLastAction] = useState<{
-    type: 'insert' | 'query' | 'clear' | null
+    type: 'insert' | 'query' | null
     word: string
     indices: number[]
     result?: 'def-no' | 'prob-yes' | 'actual-yes' | 'false-positive'
   }>({ type: null, word: '', indices: [] })
+  const [animatingIndices, setAnimatingIndices] = useState<number[]>([])
+  const [opLog, setOpLog] = useState<OperationLog[]>([])
+  const opIdRef = useRef(0)
 
-  // Simplified visual hash functions
-  const getHashA = (str: string): number => {
-    let hash = 0
-    for (let i = 0; i < str.length; i++) {
-      hash = (hash * 31 + str.charCodeAt(i)) % 16
-    }
-    return Math.abs(hash)
+  const indicesForInput = inputText ? getIndices(inputText) : []
+  const saturation = (bitArray.filter(b => b === 1).length / BIT_COUNT) * 100
+
+  const triggerAnimation = (indices: number[]) => {
+    setAnimatingIndices(indices)
+    setTimeout(() => setAnimatingIndices([]), 900)
   }
 
-  const getHashB = (str: string): number => {
-    let hash = 0
-    for (let i = 0; i < str.length; i++) {
-      hash = (hash * 17 + str.charCodeAt(i) + 5) % 16
-    }
-    return Math.abs(hash)
-  }
-
-  const getIndices = (str: string): number[] => {
-    if (!str) return []
-    const cleanStr = str.trim().toLowerCase()
-    return [getHashA(cleanStr), getHashB(cleanStr)]
+  const addLog = (entry: Omit<OperationLog, 'id' | 'ts'>) => {
+    opIdRef.current += 1
+    setOpLog(prev => [{
+      ...entry,
+      id: opIdRef.current,
+      ts: new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    }, ...prev].slice(0, 8))
   }
 
   const handleInsert = () => {
     const word = inputText.trim()
     if (!word) return
-
     const indices = getIndices(word)
     const newBitArray = [...bitArray]
-    indices.forEach(idx => {
-      newBitArray[idx] = 1
-    })
-
+    indices.forEach(idx => { newBitArray[idx] = 1 })
     setBitArray(newBitArray)
-    setInsertedItems(prev => {
-      if (prev.includes(word)) return prev
-      return [...prev, word]
-    })
-    setLastAction({
-      type: 'insert',
-      word,
-      indices
-    })
+    setInsertedItems(prev => prev.includes(word) ? prev : [...prev, word])
+    setLastAction({ type: 'insert', word, indices })
+    triggerAnimation(indices)
+    addLog({ type: 'insert', word, indices })
     setInputText('')
   }
 
   const handleQuery = () => {
     const word = inputText.trim()
     if (!word) return
-
     const indices = getIndices(word)
     const allBitsSet = indices.every(idx => bitArray[idx] === 1)
     const isInserted = insertedItems.some(item => item.toLowerCase() === word.toLowerCase())
@@ -85,238 +100,312 @@ export const BloomFilterSimulator: React.FC<BloomFilterSimulatorProps> = ({ onCo
       result = 'false-positive'
     }
 
-    setLastAction({
-      type: 'query',
-      word,
-      indices,
-      result
-    })
+    setLastAction({ type: 'query', word, indices, result })
+    triggerAnimation(indices)
+    addLog({ type: 'query', word, indices, result })
   }
 
   const handleClear = () => {
-    setBitArray(new Array(16).fill(0))
+    setBitArray(new Array(BIT_COUNT).fill(0))
     setInsertedItems([])
-    setLastAction({ type: 'clear', word: '', indices: [] })
+    setLastAction({ type: null, word: '', indices: [] })
+    setAnimatingIndices([])
+    setOpLog([])
     setInputText('')
   }
 
-  const indicesForInput = inputText ? getIndices(inputText) : []
-
   return (
-    <Card 
-      glass
-      className="simulator-container p-5 rounded-2xl border-white/5 bg-slate-950/60 flex flex-col gap-5 select-none"
-    >
-      <div className="sim-header flex justify-between items-center">
-        <h3 className="sim-title text-base font-extrabold text-foreground">Interactive Sandbox</h3>
-        <Button 
+    <div className="flex flex-col gap-5 animate-slide-up w-full select-none">
+      {/* Status bar */}
+      <div className="flex items-center justify-between px-4 py-2.5 rounded-xl border border-white/5 bg-slate-950/60">
+        <div className="flex items-center gap-4 text-[10px] font-bold">
+          <span className="text-muted-foreground">Filter Status:</span>
+          <span className="flex items-center gap-1.5 text-neon-primary">
+            <span className="w-2 h-2 rounded-full bg-neon-primary animate-pulse inline-block" />
+            {insertedItems.length} items inserted
+          </span>
+          <span className="text-muted-foreground">
+            Saturation: <span className={cn(
+              "font-black",
+              saturation > 70 ? "text-red-400" : saturation > 40 ? "text-amber-400" : "text-emerald-400"
+            )}>{saturation.toFixed(0)}%</span>
+          </span>
+        </div>
+        <Button
           variant="outline"
           size="sm"
           onClick={handleClear}
-          className="clear-btn bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 border border-red-500/20 font-mono text-[10px] rounded-lg px-2.5 h-8 flex items-center gap-1.5 cursor-pointer transition-all duration-200"
+          className="h-7 rounded-lg text-[10px] border-red-500/20 bg-red-500/5 text-red-400 hover:bg-red-500/15 hover:text-red-300 font-bold cursor-pointer"
         >
-          <RefreshCw size={12} />
-          Reset Array
+          <RefreshCw size={10} />
+          Reset
         </Button>
       </div>
 
-      {/* Bit Array Visualizer */}
-      <div className="sim-visualization-card flex flex-col gap-2">
-        <span className="section-label text-[10px] font-extrabold text-neon-secondary uppercase tracking-wider block">
-          16-Bit Array (m = 16)
-        </span>
-        <div className="bit-tape grid grid-cols-8 sm:grid-cols-16 gap-1 bg-black/20 p-2.5 rounded-xl border border-white/5">
-          {bitArray.map((bit, idx) => {
-            const isHighlightedByTyping = indicesForInput.includes(idx)
-            const isHighlightedByAction = lastAction.indices.includes(idx)
-            
-            let borderStyle = 'border-white/5'
-            let bgStyle = 'bg-white/2'
-            let textStyle = 'text-muted-foreground'
-            let animateClass = ''
-
-            if (bit === 1) {
-              bgStyle = 'bg-neon-primary/20 shadow-[inset_0_0_10px_rgba(16,185,129,0.1)]'
-              borderStyle = 'border-neon-primary/50'
-              textStyle = 'text-emerald-400 font-extrabold'
-            }
-
-            if (isHighlightedByTyping) {
-              borderStyle = 'border-neon-secondary'
-              animateClass = 'animate-pulse scale-[1.03] z-10'
-            } else if (isHighlightedByAction && lastAction.type === 'query') {
-              if (lastAction.result === 'def-no') {
-                bgStyle = 'bg-red-500/20 shadow-[0_0_10px_rgba(239,68,68,0.2)]'
-                borderStyle = 'border-neon-danger'
-                textStyle = 'text-red-400 font-extrabold'
-              } else {
-                bgStyle = 'bg-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.2)]'
-                borderStyle = 'border-neon-success'
-                textStyle = 'text-emerald-400 font-extrabold'
-              }
-              animateClass = 'scale-[1.03] z-10'
-            }
-
-            return (
-              <div 
-                key={idx} 
-                className={cn(
-                  "bit-cell aspect-square rounded-lg flex flex-col items-center justify-center border transition-all duration-200",
-                  bgStyle,
-                  borderStyle,
-                  animateClass
-                )}
-              >
-                <span className="bit-index-label text-[8px] text-muted-foreground mb-0.5">{idx}</span>
-                <span className={cn("bit-cell-value font-mono text-xs", textStyle)}>{bit}</span>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        {/* Left: Bit array + input */}
+        <div className="lg:col-span-2 flex flex-col gap-4">
+          {/* Bit Array Visualizer */}
+          <Card glass className="p-5 bg-slate-950/60 border-white/5 flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-extrabold text-neon-secondary uppercase tracking-widest">Bit Array (m = {BIT_COUNT})</span>
+              {/* Saturation bar */}
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] text-muted-foreground">{saturation.toFixed(0)}% full</span>
+                <div className="w-24 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                  <div
+                    className={cn("h-full rounded-full transition-all duration-500", saturation > 70 ? "bg-red-500" : saturation > 40 ? "bg-amber-500" : "bg-neon-primary")}
+                    style={{ width: `${saturation}%` }}
+                  />
+                </div>
               </div>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* Inputs Area */}
-      <div className="sim-controls-layout flex flex-col gap-3">
-        <div className="input-field-wrapper relative w-full flex items-center">
-          <Input
-            type="text"
-            placeholder="Type a word (e.g. 'gems')"
-            value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
-            className="sim-input h-12 pr-44 rounded-2xl bg-slate-950/40 border-white/5 text-sm"
-            maxLength={12}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') handleInsert()
-            }}
-          />
-          {inputText && (
-            <div className="live-hash-indicator absolute right-3 font-mono text-[9px] text-slate-400 bg-slate-950 border border-white/5 px-2.5 py-1 rounded-lg flex items-center gap-1.5 pointer-events-none select-none">
-              <span>A: <strong className="text-emerald-400">{indicesForInput[0]}</strong></span>
-              <span className="text-muted-foreground">•</span>
-              <span>B: <strong className="text-teal-400">{indicesForInput[1]}</strong></span>
             </div>
-          )}
-        </div>
 
-        <div className="sim-btn-row flex gap-2 w-full">
-          <Button 
-            variant="neon"
-            className="sim-action-btn flex-1 rounded-2xl h-11 cursor-pointer"
-            onClick={handleInsert}
-            disabled={!inputText}
-          >
-            <Plus size={18} />
-            <span>Insert</span>
-          </Button>
-          
-          <Button 
-            variant="outline"
-            className="sim-action-btn flex-1 rounded-2xl h-11 bg-white/3 border-white/5 cursor-pointer font-bold text-foreground"
-            onClick={handleQuery}
-            disabled={!inputText}
-          >
-            <Search size={18} />
-            <span>Query</span>
-          </Button>
-        </div>
-      </div>
+            {/* Hash arrows row */}
+            {animatingIndices.length > 0 && (
+              <div className="flex gap-1 justify-center text-[9px] font-mono text-amber-400 animate-slide-up">
+                {lastAction.type === 'insert' ? (
+                  <span>⚡ Flipping bits at positions: <strong>{animatingIndices.join(', ')}</strong></span>
+                ) : (
+                  <span>🔍 Checking positions: <strong>{animatingIndices.join(', ')}</strong></span>
+                )}
+              </div>
+            )}
 
-      {/* Simulation Feedback Card */}
-      <Card className="sim-feedback-box min-h-[72px] rounded-2xl p-4 bg-black/10 border-white/5 flex items-center justify-center">
-        {lastAction.type === 'insert' && (
-          <div className="action-feedback flex items-start gap-3 w-full">
-            <CheckCircle2 className="feedback-icon text-neon-success mt-0.5" size={20} />
-            <div className="flex flex-col gap-0.5">
-              <p className="feedback-desc text-xs md:text-sm font-bold text-foreground">
-                Successfully inserted <strong className="font-mono text-neon-secondary">"{lastAction.word}"</strong> into filter.
-              </p>
-              <p className="feedback-subtext text-[10px] md:text-xs text-muted-foreground leading-normal">
-                Hash index values: <strong>{lastAction.indices[0]}</strong> and <strong>{lastAction.indices[1]}</strong> flipped to <strong>1</strong>.
-              </p>
+            {/* Bit cells */}
+            <div className="grid grid-cols-8 sm:grid-cols-16 gap-1.5">
+              {bitArray.map((bit, idx) => {
+                const isTypingHighlight = indicesForInput.includes(idx) && !animatingIndices.length
+                const isAnimating = animatingIndices.includes(idx)
+                const isLastAction = lastAction.indices.includes(idx) && !animatingIndices.length
+                const isQueryResult = lastAction.type === 'query' && isLastAction
+
+                let cellClass = ''
+                if (bit === 1) cellClass = 'bg-neon-primary/20 border-neon-primary/50 text-emerald-400'
+                else cellClass = 'bg-white/2 border-white/5 text-slate-600'
+
+                if (isTypingHighlight) cellClass = 'bg-amber-500/15 border-amber-500 text-amber-300 scale-110 z-10 shadow-[0_0_10px_rgba(245,158,11,0.25)]'
+                if (isAnimating) {
+                  if (lastAction.type === 'insert') cellClass = 'bg-neon-primary/40 border-neon-primary text-white scale-125 z-10 shadow-[0_0_12px_rgba(16,185,129,0.5)]'
+                  else cellClass = 'bg-amber-500/30 border-amber-500 text-amber-200 scale-115 z-10 shadow-[0_0_12px_rgba(245,158,11,0.4)]'
+                }
+                if (isQueryResult && !isAnimating) {
+                  if (lastAction.result === 'def-no') cellClass = `${bit === 1 ? 'bg-neon-primary/20 border-neon-primary/50 text-emerald-400' : 'bg-red-500/20 border-red-500 text-red-400'}`
+                  else cellClass = 'bg-emerald-500/20 border-emerald-500 text-emerald-300'
+                }
+
+                return (
+                  <div
+                    key={idx}
+                    className={cn(
+                      "aspect-square rounded-lg border flex flex-col items-center justify-center transition-all duration-200 relative",
+                      cellClass
+                    )}
+                  >
+                    <span className="text-[7px] leading-none mb-0.5 opacity-50">{idx}</span>
+                    <span className="font-mono text-xs font-black leading-none">{bit}</span>
+                  </div>
+                )
+              })}
             </div>
-          </div>
-        )}
 
-        {lastAction.type === 'query' && lastAction.result === 'def-no' && (
-          <div className="action-feedback flex items-start gap-3 w-full animate-slide-up">
-            <AlertCircle className="feedback-icon text-neon-danger mt-0.5" size={20} />
-            <div className="flex flex-col gap-0.5">
-              <p className="feedback-desc text-xs md:text-sm font-bold text-foreground">
-                Query Result for <strong className="font-mono">"{lastAction.word}"</strong>: <strong>DEFINITELY NOT IN SET</strong>
-              </p>
-              <p className="feedback-subtext text-[10px] md:text-xs text-muted-foreground leading-normal">
-                Indices checked: {lastAction.indices.map((idx, i) => (
-                  <span key={i} className="inline-block bg-white/3 px-1.5 py-0.5 rounded border border-white/5 mx-0.5 text-[9px] font-mono">
-                    Index {idx} ({bitArray[idx]})
+            {/* Hash legend for current input */}
+            {indicesForInput.length > 0 && (
+              <div className="flex items-center gap-3 text-[9px] font-mono bg-black/20 border border-white/5 rounded-xl px-3 py-2 animate-slide-up">
+                <Hash size={10} className="text-amber-400 shrink-0" />
+                <span className="text-muted-foreground">"{inputText}" →</span>
+                <span className="text-amber-300 font-bold">HashA: {indicesForInput[0]}</span>
+                <span className="text-muted-foreground">•</span>
+                <span className="text-teal-300 font-bold">HashB: {indicesForInput[1] ?? indicesForInput[0]}</span>
+                <span className="text-muted-foreground ml-1">bits will be checked/flipped</span>
+              </div>
+            )}
+          </Card>
+
+          {/* Input Controls */}
+          <Card glass className="p-4 bg-slate-950/60 border-white/5 flex flex-col gap-3">
+            <span className="text-[10px] font-extrabold text-neon-secondary uppercase tracking-widest">Test the Filter</span>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="Type a word (e.g. 'apple')"
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                className="flex-1 rounded-xl bg-slate-950 border border-white/5 text-sm px-4 py-2.5 font-mono text-white placeholder-slate-600 focus:outline-none focus:border-neon-primary transition-colors"
+                maxLength={14}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleInsert() }}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                variant="neon"
+                className="rounded-xl h-11 cursor-pointer font-bold"
+                onClick={handleInsert}
+                disabled={!inputText}
+              >
+                <Plus size={16} />
+                <span>Insert</span>
+              </Button>
+              <Button
+                variant="outline"
+                className="rounded-xl h-11 bg-white/3 border-white/5 cursor-pointer font-bold text-foreground hover:bg-white/8"
+                onClick={handleQuery}
+                disabled={!inputText}
+              >
+                <Search size={16} />
+                <span>Query</span>
+              </Button>
+            </div>
+
+            {/* Feedback card */}
+            <div className={cn(
+              "rounded-xl p-3.5 border min-h-[60px] flex items-center transition-all duration-300",
+              lastAction.type === 'insert' && "border-neon-primary/25 bg-neon-primary/5",
+              lastAction.result === 'def-no' && "border-red-500/25 bg-red-500/5",
+              lastAction.result === 'actual-yes' && "border-emerald-500/25 bg-emerald-500/5",
+              lastAction.result === 'false-positive' && "border-amber-500/25 bg-amber-500/5",
+              lastAction.type === null && "border-white/5 bg-black/10",
+            )}>
+              {lastAction.type === null && (
+                <p className="text-xs text-muted-foreground text-center w-full">
+                  💡 Try: insert <strong>"apple"</strong> and <strong>"banana"</strong>, then query <strong>"mango"</strong> — you might trigger a false positive!
+                </p>
+              )}
+
+              {lastAction.type === 'insert' && (
+                <div className="flex items-start gap-2.5 w-full animate-slide-up">
+                  <CheckCircle2 size={18} className="text-neon-success mt-0.5 shrink-0" />
+                  <div className="flex flex-col gap-0.5">
+                    <p className="text-xs font-bold text-foreground">
+                      ✅ Inserted <span className="font-mono text-neon-secondary">"{lastAction.word}"</span>
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">
+                      Flipped bits at indices <strong className="text-white">{lastAction.indices.join(' & ')}</strong> to 1. The word itself is NOT stored.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {lastAction.result === 'def-no' && (
+                <div className="flex items-start gap-2.5 w-full animate-slide-up">
+                  <AlertCircle size={18} className="text-red-400 mt-0.5 shrink-0" />
+                  <div className="flex flex-col gap-0.5">
+                    <p className="text-xs font-bold text-foreground">
+                      🚫 <span className="font-mono text-red-300">"{lastAction.word}"</span> is <strong>DEFINITELY NOT</strong> in the set
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">
+                      Checked bits at {lastAction.indices.map(i => `[${i}]=${bitArray[i]}`).join(', ')}. A <strong className="text-white">0</strong> means it was never inserted. No DB query needed!
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {lastAction.result === 'actual-yes' && (
+                <div className="flex items-start gap-2.5 w-full animate-slide-up">
+                  <CheckCircle2 size={18} className="text-emerald-400 mt-0.5 shrink-0" />
+                  <div className="flex flex-col gap-0.5">
+                    <p className="text-xs font-bold text-foreground">
+                      ✅ <span className="font-mono text-emerald-300">"{lastAction.word}"</span> is <strong>PROBABLY IN</strong> the set (verified!)
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">
+                      All bits at {lastAction.indices.join(', ')} are 1 — and we did insert this word. True positive!
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {lastAction.result === 'false-positive' && (
+                <div className="flex items-start gap-2.5 w-full animate-slide-up">
+                  <HelpCircle size={18} className="text-amber-400 mt-0.5 shrink-0 animate-pulse" />
+                  <div className="flex flex-col gap-0.5">
+                    <p className="text-xs font-bold text-foreground">
+                      ⚠️ <strong className="text-amber-300">FALSE POSITIVE!</strong> Filter says maybe, but <span className="font-mono text-amber-300">"{lastAction.word}"</span> was never inserted
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">
+                      Bits at {lastAction.indices.join(', ')} were already flipped by other words. Classic bloom filter trade-off!
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </Card>
+        </div>
+
+        {/* Right panel: inserted items + operation log */}
+        <div className="flex flex-col gap-4">
+          {/* Inserted items */}
+          <Card glass className="p-4 bg-slate-950/60 border-white/5 flex flex-col gap-2.5">
+            <span className="text-[10px] font-extrabold text-neon-secondary uppercase tracking-widest">Inserted Items ({insertedItems.length})</span>
+            {insertedItems.length === 0 ? (
+              <p className="text-xs text-muted-foreground italic font-mono">[ empty set ]</p>
+            ) : (
+              <div className="flex flex-wrap gap-1.5">
+                {insertedItems.map((item, idx) => (
+                  <span
+                    key={idx}
+                    className="text-xs font-mono px-2.5 py-1 rounded-lg bg-neon-primary/10 border border-neon-primary/20 text-emerald-300 font-bold"
+                  >
+                    {item}
                   </span>
-                ))}. Since at least one checked cell is <strong>0</strong>, it is mathematically impossible for the item to be in the set.
-              </p>
+                ))}
+              </div>
+            )}
+            <p className="text-[9px] text-muted-foreground leading-relaxed border-t border-white/5 pt-2">
+              💡 Only bits are stored in the filter — the actual words above are shown for learning purposes only.
+            </p>
+          </Card>
+
+          {/* Operation Log */}
+          <Card glass className="p-4 bg-slate-950/60 border-white/5 flex flex-col gap-2.5 flex-grow">
+            <span className="text-[10px] font-extrabold text-neon-secondary uppercase tracking-widest">Operation Log</span>
+            <div className="flex flex-col gap-1.5 overflow-y-auto max-h-[280px] font-mono text-[9px]">
+              {opLog.length === 0 ? (
+                <span className="text-muted-foreground italic">[ no operations yet ]</span>
+              ) : (
+                opLog.map(op => (
+                  <div key={op.id} className={cn(
+                    "p-2 rounded-lg border flex flex-col gap-0.5 animate-slide-up",
+                    op.type === 'insert' && "border-neon-primary/20 bg-neon-primary/5",
+                    op.result === 'def-no' && "border-red-500/20 bg-red-500/5",
+                    op.result === 'actual-yes' && "border-emerald-500/20 bg-emerald-500/5",
+                    op.result === 'false-positive' && "border-amber-500/20 bg-amber-500/5",
+                  )}>
+                    <div className="flex items-center justify-between">
+                      <span className={cn(
+                        "font-extrabold text-[9px] uppercase",
+                        op.type === 'insert' && "text-neon-primary",
+                        op.result === 'def-no' && "text-red-400",
+                        op.result === 'actual-yes' && "text-emerald-400",
+                        op.result === 'false-positive' && "text-amber-400",
+                      )}>
+                        {op.type === 'insert' ? '+ INSERT' :
+                          op.result === 'def-no' ? '✗ NOT FOUND' :
+                          op.result === 'actual-yes' ? '✓ FOUND' : '⚠ FALSE POS'}
+                      </span>
+                      <span className="text-muted-foreground text-[8px]">{op.ts}</span>
+                    </div>
+                    <span className="text-slate-300">"{op.word}" → bits [{op.indices.join(', ')}]</span>
+                  </div>
+                ))
+              )}
             </div>
-          </div>
-        )}
-
-        {lastAction.type === 'query' && lastAction.result === 'actual-yes' && (
-          <div className="action-feedback flex items-start gap-3 w-full animate-slide-up">
-            <CheckCircle2 className="feedback-icon text-neon-success mt-0.5" size={20} />
-            <div className="flex flex-col gap-0.5">
-              <p className="feedback-desc text-xs md:text-sm font-bold text-foreground">
-                Query Result for <strong className="font-mono">"{lastAction.word}"</strong>: <strong>PROBABLY IN SET (Verified)</strong>
-              </p>
-              <p className="feedback-subtext text-[10px] md:text-xs text-muted-foreground leading-normal">
-                All checked bit cells ({lastAction.indices.join(', ')}) are set to <strong>1</strong>. The item is verified in the set because it was previously inserted.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {lastAction.type === 'query' && lastAction.result === 'false-positive' && (
-          <div className="action-feedback flex items-start gap-3 w-full animate-slide-up">
-            <HelpCircle className="feedback-icon text-neon-warning mt-0.5 animate-pulse" size={20} />
-            <div className="flex flex-col gap-0.5">
-              <p className="feedback-desc text-xs md:text-sm font-bold text-foreground">
-                Query Result for <strong className="font-mono">"{lastAction.word}"</strong>: <strong>MAYBE IN SET (False Positive!)</strong>
-              </p>
-              <p className="feedback-subtext text-[10px] md:text-xs text-muted-foreground leading-normal">
-                All checked bit cells ({lastAction.indices.join(', ')}) are set to <strong>1</strong>, but <strong className="font-mono">"{lastAction.word}"</strong> was <strong>never inserted</strong>! The bits were flipped by other words. This is a false positive!
-              </p>
-            </div>
-          </div>
-        )}
-
-        {lastAction.type === null && (
-          <p className="feedback-placeholder text-xs text-muted-foreground leading-relaxed text-center">
-            Type a word to test. Try inserting "apple" and "google", then query "micro" to see if you can trigger a false positive!
-          </p>
-        )}
-      </Card>
-
-      {/* Inserted Items Panel */}
-      <div className="sim-inserted-items bg-black/10 border border-white/5 rounded-2xl p-4">
-        <span className="section-label text-[10px] font-extrabold text-neon-secondary uppercase tracking-wider block mb-2">
-          Actual elements in Set ({insertedItems.length})
-        </span>
-        {insertedItems.length === 0 ? (
-          <p className="empty-set font-mono text-xs text-muted-foreground select-none">[ Empty Set ]</p>
-        ) : (
-          <div className="items-pills-list flex flex-wrap gap-1.5">
-            {insertedItems.map((item, idx) => (
-              <span key={idx} className="inserted-pill text-xs font-mono px-2.5 py-1 rounded-lg text-slate-300 bg-white/3 border border-white/5 select-none">
-                {item}
-              </span>
-            ))}
-          </div>
-        )}
+          </Card>
+        </div>
       </div>
 
-      <Button 
-        variant="neon-secondary" 
-        size="lg"
-        className="w-full rounded-2xl py-6 cursor-pointer text-base"
-        onClick={onComplete}
-      >
-        <span>Play the Challenge Game</span>
-        <ArrowRight size={18} />
-      </Button>
-    </Card>
+      {/* Continue button */}
+      <div className="flex justify-end">
+        <Button
+          variant="neon-secondary"
+          size="lg"
+          className="rounded-xl h-11 px-6 cursor-pointer text-sm font-bold"
+          onClick={onComplete}
+        >
+          <Zap size={16} />
+          <span>Continue to Challenge</span>
+          <ArrowRight size={16} />
+        </Button>
+      </div>
+    </div>
   )
 }

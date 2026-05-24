@@ -13,5 +13,5 @@ JWT_SECRET = "super-secret-key-change-me-in-production"
 [[d1_databases]]
 binding = "DB"
 database_name = "gimanasih-db"
-database_id = "your-database-id-goes-here"
+database_id = "2d575e54-5392-43fd-8dff-88b0b22eaf70"
 migrations_dir = "migrations"

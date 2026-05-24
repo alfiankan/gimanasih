@@ -47,7 +47,7 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, setActiveTab 
       {/* Desktop Sidebar Nav */}
       <aside className="desktop-sidebar hidden md:flex fixed top-0 left-0 bottom-0 w-[240px] flex-col p-6 z-50 border-r border-border/80 bg-background/95 backdrop-blur-xl">
         <div className="sidebar-logo flex items-center gap-3 mb-10 pl-2 select-none">
-          <Brain size={24} className="logo-icon text-neon-primary drop-shadow-[0_0_8px_rgba(16,185,129,0.4)] animate-pulse" />
+          <Brain size={24} className="logo-icon text-neon-primary" />
           <span className="logo-text text-xl font-extrabold tracking-tight bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
             bitbrain
           </span>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { ArrowRight, ArrowLeft, Lightbulb, AlertCircle, RefreshCw, Brain, Plus, Layers } from 'lucide-react'
+import { ArrowRight, ArrowLeft, Lightbulb, AlertCircle, RefreshCw, Brain, Plus, Layers, Zap, Database } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -9,9 +9,7 @@ export const KHashInteractiveWidget: React.FC = () => {
   const m = 16;
   const words = ['apple', 'banana', 'cherry'];
 
-  // Calculate hashes
   const getHashesForWord = (word: string, hashCount: number): number[] => {
-    // Simple deterministic hashing
     const hashIndices: number[] = [];
     let baseHash = 0;
     for (let i = 0; i < word.length; i++) {
@@ -29,16 +27,12 @@ export const KHashInteractiveWidget: React.FC = () => {
     indices: getHashesForWord(w, k)
   }));
 
-  // Active bits in the array
   const activeBits = new Set<number>();
   wordHashes.forEach(item => {
     item.indices.forEach(idx => activeBits.add(idx));
   });
 
   const saturation = (activeBits.size / m) * 100;
-
-  // Theoretical False Positive Probability: (1 - e^(-k * n / m))^k
-  // n = 3 elements
   const n = 3;
   const fpp = Math.pow(1 - Math.exp(-k * n / m), k) * 100;
 
@@ -47,34 +41,33 @@ export const KHashInteractiveWidget: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex flex-col gap-0.5">
           <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-            Number of Hash Functions (k) = <span className="text-neon-secondary text-sm font-black">{k}</span>
+            Hash functions (k) = <span className="text-neon-secondary text-sm font-black">{k}</span>
           </label>
-          <span className="text-[10px] text-muted-foreground">Adjust k to see how bit saturation and False Positive Rate shift.</span>
+          <span className="text-[10px] text-muted-foreground">Drag to see how false positive rate changes live!</span>
         </div>
-        <input 
-          type="range" 
-          min="1" 
-          max="8" 
-          value={k} 
+        <input
+          type="range"
+          min="1"
+          max="8"
+          value={k}
           onChange={(e) => setK(parseInt(e.target.value))}
           className="w-full sm:w-[150px] accent-neon-secondary cursor-pointer h-1.5 bg-white/10 rounded-lg appearance-none"
         />
       </div>
 
-      {/* Bit Array Visualizer */}
       <div className="flex flex-col gap-1.5">
         <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Bit Array (m = 16)</span>
         <div className="grid grid-cols-8 sm:grid-cols-16 gap-1.5 w-full">
           {Array.from({ length: m }).map((_, idx) => {
             const isActive = activeBits.has(idx);
             return (
-              <div 
-                key={idx} 
+              <div
+                key={idx}
                 className={cn(
-                  "aspect-square rounded border border-white/5 flex flex-col items-center justify-center text-[10px] transition-all duration-300",
-                  isActive 
-                    ? "bg-gradient-to-br from-neon-primary to-neon-secondary border-transparent scale-105 shadow-[0_0_8px_rgba(16,185,129,0.3)] text-white" 
-                    : "bg-white/2 text-muted-foreground"
+                  "aspect-square rounded border flex flex-col items-center justify-center text-[10px] transition-all duration-300",
+                  isActive
+                    ? "bg-gradient-to-br from-neon-primary to-neon-secondary border-transparent scale-105 shadow-[0_0_8px_rgba(16,185,129,0.3)] text-white"
+                    : "bg-white/2 border-white/5 text-muted-foreground"
                 )}
               >
                 <span className="opacity-50 text-[7px] leading-none mb-0.5">{idx}</span>
@@ -85,7 +78,6 @@ export const KHashInteractiveWidget: React.FC = () => {
         </div>
       </div>
 
-      {/* Interactive Hash Map Summary */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
         {wordHashes.map((item, idx) => (
           <div key={idx} className="p-2.5 rounded-xl bg-slate-900/50 border border-white/5 flex flex-col gap-1">
@@ -101,16 +93,16 @@ export const KHashInteractiveWidget: React.FC = () => {
         ))}
       </div>
 
-      {/* Tradeoff Explainer Stats */}
-      <div className="grid grid-cols-2 gap-3 mt-1 border-t border-white/5 pt-3">
+      <div className="grid grid-cols-2 gap-3 border-t border-white/5 pt-3">
         <div className="flex flex-col gap-0.5">
           <span className="text-[9px] font-extrabold text-muted-foreground uppercase tracking-wider">Bit Saturation</span>
-          <span className="text-base font-black text-white">{activeBits.size} / 16 ({saturation.toFixed(0)}%)</span>
-          <span className="text-[9px] text-slate-400">
-            {k <= 2 && 'Low saturation. Fast lookup, but overlaps can happen.'}
-            {k >= 3 && k <= 5 && 'Optimal balance! Half of the bits are active.'}
-            {k >= 6 && 'Too high! Array is saturated, false positive risk goes up.'}
-          </span>
+          <span className="text-base font-black text-white">{activeBits.size}/16 ({saturation.toFixed(0)}%)</span>
+          <div className="h-1.5 w-full bg-white/5 rounded-full mt-1">
+            <div
+              className={cn("h-full rounded-full transition-all duration-300", saturation > 70 ? "bg-red-500" : saturation > 40 ? "bg-amber-500" : "bg-neon-primary")}
+              style={{ width: `${saturation}%` }}
+            />
+          </div>
         </div>
         <div className="flex flex-col gap-0.5">
           <span className="text-[9px] font-extrabold text-muted-foreground uppercase tracking-wider">False Positive Rate</span>
@@ -121,7 +113,9 @@ export const KHashInteractiveWidget: React.FC = () => {
             {fpp.toFixed(1)}%
           </span>
           <span className="text-[9px] text-slate-400">
-            Probability of a false match query after inserting 3 items.
+            {k <= 2 && '⚠️ Too few checks — easy overlaps.'}
+            {k >= 3 && k <= 5 && '✅ Sweet spot — good balance!'}
+            {k >= 6 && '🔴 Over-saturated — too many false positives!'}
           </span>
         </div>
       </div>
@@ -138,181 +132,243 @@ export const BloomFilterConcept: React.FC<BloomFilterConceptProps> = ({ onComple
 
   const slides = [
     {
-      title: '1. What is a Bloom Filter?',
+      title: '1. The Problem — Checking a Billion Usernames',
       icon: Brain,
       iconColor: 'text-neon-primary',
       content: (
         <div className="concept-slide-content flex flex-col gap-4 animate-slide-up">
           <p className="text-sm md:text-base leading-relaxed text-muted-foreground">
-            Imagine you run a massive social network and need to check if a username is already taken. Querying a database of 1 billion users is slow!
+            Imagine you're building Twitter. When someone types a new username, you need to check if it's already taken. But you have <strong className="text-white">500 million users</strong>. Querying your main database for every keystroke would be <strong className="text-red-400">brutally slow and expensive</strong>. 😩
           </p>
-          <div className="highlight-box p-4 rounded-xl border border-neon-primary/20 bg-neon-primary/5 text-sm md:text-base leading-relaxed text-foreground">
-            A <strong>Bloom Filter</strong> is a lightning-fast, space-efficient <em>probabilistic</em> data structure. It tells you immediately if an element is <strong>definitely not</strong> in a set, or if it is <strong>probably</strong> in the set.
+          <div className="grid grid-cols-2 gap-3 select-none text-xs">
+            <div className="p-3.5 rounded-xl border border-red-500/25 bg-red-500/5 flex flex-col gap-2">
+              <span className="text-2xl text-center">🐢</span>
+              <span className="font-black text-red-400 text-center">Database Lookup</span>
+              <ul className="flex flex-col gap-1 text-muted-foreground leading-snug">
+                <li>• Hits disk/network every time</li>
+                <li>• Scales poorly with size</li>
+                <li>• Costs money at scale</li>
+                <li>• ~1–100ms per query</li>
+              </ul>
+            </div>
+            <div className="p-3.5 rounded-xl border border-neon-primary/25 bg-neon-primary/5 flex flex-col gap-2">
+              <span className="text-2xl text-center">⚡</span>
+              <span className="font-black text-neon-primary text-center">Bloom Filter</span>
+              <ul className="flex flex-col gap-1 text-muted-foreground leading-snug">
+                <li>• Lives in RAM, never disk</li>
+                <li>• Constant O(k) time</li>
+                <li>• Uses kilobytes, not GB</li>
+                <li>• ~microseconds per query</li>
+              </ul>
+            </div>
           </div>
-          <div className="concept-visual bg-black/20 border border-white/5 rounded-2xl p-5 flex flex-col items-center justify-center gap-3 mt-2 select-none">
-            <div className="visual-database w-4/5 text-center text-xs md:text-sm text-slate-400 bg-white/5 border border-white/5 py-2.5 rounded-xl font-semibold">
-              Database (Slow)
-            </div>
-            <div className="visual-divider font-mono text-[10px] text-muted-foreground font-bold">VS</div>
-            <div className="visual-bloom-icon w-4/5 text-center text-xs md:text-sm text-white bg-gradient-to-r from-neon-primary to-neon-secondary py-3 rounded-xl font-extrabold shadow-[0_0_15px_rgba(16,185,129,0.3)] animate-pulse">
-              Bloom Filter (Instant, Tiny Memory)
-            </div>
+          <div className="p-3 rounded-xl border border-neon-primary/20 bg-neon-primary/5 text-xs leading-relaxed text-foreground">
+            <strong>The trick:</strong> A Bloom Filter tells you <em>instantly</em> if something is <strong className="text-emerald-400">definitely NOT</strong> in the set — so you only hit the slow database when there's actually a chance of a match.
           </div>
         </div>
       )
     },
     {
-      title: '2. The Core Memory: Bit Array',
+      title: '2. The Core — Just a Row of Light Switches',
       icon: Lightbulb,
       iconColor: 'text-neon-secondary',
       content: (
         <div className="concept-slide-content flex flex-col gap-4 animate-slide-up">
           <p className="text-sm md:text-base leading-relaxed text-muted-foreground">
-            Under the hood, a Bloom Filter is just a simple <strong>bit array</strong> of size <em>m</em>. When initialized, every single cell is set to <strong>0</strong> (representing empty/false).
+            Inside a Bloom Filter is just a <strong className="text-white">bit array</strong> — a fixed row of slots, each holding either <code className="bg-white/10 px-1 rounded text-[11px]">0</code> (off) or <code className="bg-white/10 px-1 rounded text-[11px]">1</code> (on). Think of it as a row of <strong className="text-white">light switches</strong>, all starting off.
           </p>
-          <p className="text-sm md:text-base leading-relaxed text-muted-foreground">
-            It uses extremely small memory because it doesn't store the actual data (like usernames or strings) — it only stores bits (0 or 1)!
-          </p>
-          <div className="concept-visual bg-black/20 border border-white/5 rounded-2xl p-5 flex flex-col items-center justify-center gap-3 mt-2 select-none">
-            <div className="concept-bit-array grid grid-cols-8 gap-1.5 w-full max-w-[400px]">
-              {[0, 1, 2, 3, 4, 5, 6, 7].map((val) => (
-                <div key={val} className="concept-bit-cell aspect-square border border-white/5 rounded-lg flex flex-col items-center justify-center bg-white/2">
-                  <span className="bit-idx text-[8px] text-muted-foreground mb-0.5">{val}</span>
-                  <span className="bit-val font-mono text-sm font-extrabold text-foreground">0</span>
-                </div>
-              ))}
+          <div className="bg-black/20 border border-white/5 rounded-2xl p-5 flex flex-col items-center gap-4 select-none">
+            <div className="flex flex-col items-center gap-1.5 w-full">
+              <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Empty Bloom Filter (m = 8 slots)</span>
+              <div className="grid grid-cols-8 gap-2 w-full max-w-sm">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <div key={i} className="flex flex-col items-center gap-1">
+                    <div className="w-full aspect-square rounded-lg border border-white/10 bg-slate-900/60 flex items-center justify-center font-mono text-sm font-black text-slate-600">0</div>
+                    <span className="text-[8px] text-muted-foreground">{i}</span>
+                  </div>
+                ))}
+              </div>
             </div>
-            <span className="visual-caption text-xs text-muted-foreground">An empty Bloom Filter bit array of size m = 8</span>
+            <p className="text-[10px] text-center text-muted-foreground">Every slot starts at 0 — the filter knows nothing yet.</p>
+          </div>
+          <div className="p-3 rounded-xl border border-neon-secondary/20 bg-neon-secondary/5 text-xs leading-relaxed text-muted-foreground">
+            💡 <strong className="text-white">Why so tiny?</strong> It doesn't store the actual values (usernames, emails, etc.) — only tiny bits! A filter for 1 million items only needs ~1.2 MB of RAM.
           </div>
         </div>
       )
     },
     {
-      title: '3. Hash Functions',
+      title: '3. Hash Functions — The Fingerprinting Machine',
       icon: RefreshCw,
       iconColor: 'text-neon-warning',
       content: (
         <div className="concept-slide-content flex flex-col gap-4 animate-slide-up">
           <p className="text-sm md:text-base leading-relaxed text-muted-foreground">
-            A Bloom Filter uses <strong>k</strong> independent hash functions. A hash function takes any input string and maps it to a number between <strong>0</strong> and <strong>m - 1</strong>.
+            To use a Bloom Filter, every item gets put through <strong className="text-white">k hash functions</strong>. Each hash function is like a <strong className="text-white">fingerprinting machine</strong> — it takes any string and spits out a number (the index to flip in the array).
           </p>
-          <div className="concept-visual bg-black/20 border border-white/5 rounded-2xl p-5 flex flex-col items-center justify-center gap-3 mt-2 select-none">
-            <div className="hash-flow-demo flex flex-col items-center gap-3.5 w-full">
-              <span className="input-key font-mono text-white bg-white/5 border border-white/5 px-4 py-1.5 rounded-lg text-sm font-bold">"apple"</span>
-              <div className="hash-functions-split flex flex-col gap-2 w-full">
-                <div className="hash-machine-pill p-3 border border-white/5 rounded-xl bg-slate-900/50 flex justify-between text-xs font-mono">
-                  <span className="text-muted-foreground">Hash A(x) % 8 ➔</span>
-                  <span className="neon-value text-neon-secondary font-extrabold shadow-sm">2</span>
-                </div>
-                <div className="hash-machine-pill p-3 border border-white/5 rounded-xl bg-slate-900/50 flex justify-between text-xs font-mono">
-                  <span className="text-muted-foreground">Hash B(x) % 8 ➔</span>
-                  <span className="neon-value text-emerald-400 font-extrabold shadow-sm">5</span>
-                </div>
-              </div>
+          <div className="bg-black/20 border border-white/5 rounded-2xl p-4 flex flex-col gap-4 select-none">
+            <div className="flex items-center justify-center">
+              <span className="font-mono text-white bg-white/10 border border-white/10 px-4 py-2 rounded-xl text-sm font-bold">"apple"</span>
             </div>
+            <div className="flex items-center gap-2">
+              <div className="h-px flex-1 bg-white/10" />
+              <span className="text-[10px] text-muted-foreground font-bold">3 hash functions</span>
+              <div className="h-px flex-1 bg-white/10" />
+            </div>
+            <div className="flex flex-col gap-2">
+              {[
+                { label: 'Hash1("apple") % 16', result: 3, color: 'text-emerald-400 border-emerald-500/30 bg-emerald-500/5' },
+                { label: 'Hash2("apple") % 16', result: 9, color: 'text-blue-400 border-blue-500/30 bg-blue-500/5' },
+                { label: 'Hash3("apple") % 16', result: 14, color: 'text-purple-400 border-purple-500/30 bg-purple-500/5' },
+              ].map((h, i) => (
+                <div key={i} className={`flex items-center justify-between p-2.5 rounded-xl border ${h.color} text-xs font-mono`}>
+                  <span className="text-muted-foreground">{h.label}</span>
+                  <span className={`font-black text-sm ${h.color.split(' ')[0]}`}>→ {h.result}</span>
+                </div>
+              ))}
+            </div>
+            <p className="text-[10px] text-center text-muted-foreground">→ Flip bits at positions 3, 9, and 14 to <strong className="text-white">1</strong></p>
           </div>
-          <p className="text-xs md:text-sm leading-relaxed text-muted-foreground">
-            A good hash function distributes inputs uniformly, minimizing the chance of two different words hitting the exact same index.
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            A good hash function spreads outputs <strong className="text-white">evenly</strong> so different words hit different positions — minimizing accidental overlaps.
           </p>
         </div>
       )
     },
     {
-      title: '4. The k-Hash Algorithm (Optimal Hash Count)',
-      icon: Layers,
-      iconColor: 'text-neon-secondary',
-      content: (
-        <div className="concept-slide-content flex flex-col gap-3 animate-slide-up">
-          <p className="text-xs md:text-sm leading-relaxed text-muted-foreground">
-            How many hash functions (<em>k</em>) should we choose? It's a delicate tradeoff:
-          </p>
-          <ul className="list-disc pl-5 flex flex-col gap-1 text-xs md:text-sm text-muted-foreground leading-relaxed">
-            <li><strong>Too few hashes (low k)</strong>: Fast, but checks fewer bits per element, leading to more overlaps.</li>
-            <li><strong>Too many hashes (high k)</strong>: The array fills up with 1s too fast, causing false positives.</li>
-          </ul>
-          <KHashInteractiveWidget />
-        </div>
-      )
-    },
-    {
-      title: '5. Inserting Elements',
+      title: '4. Inserting an Item — Flipping Switches',
       icon: Plus,
       iconColor: 'text-neon-success',
       content: (
         <div className="concept-slide-content flex flex-col gap-4 animate-slide-up">
           <p className="text-sm md:text-base leading-relaxed text-muted-foreground">
-            To insert an item, run it through all <em>k</em> hash functions to calculate the indices. Flip the bits at those indices to <strong>1</strong>.
+            To <strong className="text-white">add "apple"</strong> to the filter: run it through all k hash functions, get the indices, and flip those slots to <code className="bg-white/10 px-1 rounded text-[11px] text-emerald-400">1</code>.
           </p>
-          <div className="concept-visual bg-black/20 border border-white/5 rounded-2xl p-5 flex flex-col items-center justify-center gap-3 mt-2 select-none">
-            <p className="visual-title text-xs font-bold text-muted-foreground mb-1">
-              Inserting <span className="font-mono text-neon-secondary font-extrabold">"apple"</span> (hashes: 2, 5)
-            </p>
-            <div className="concept-bit-array grid grid-cols-8 gap-1.5 w-full max-w-[400px]">
-              {[0, 0, 1, 0, 0, 1, 0, 0].map((val, idx) => {
-                const isActive = idx === 2 || idx === 5
+          <div className="bg-black/20 border border-white/5 rounded-2xl p-4 flex flex-col gap-3 select-none">
+            <div className="flex items-center gap-2 text-xs">
+              <span className="font-mono bg-white/5 border border-white/10 px-2 py-1 rounded text-white font-bold">"apple"</span>
+              <span className="text-muted-foreground">→ hashes → slots</span>
+              <span className="font-mono text-emerald-400 font-black">3, 9, 14</span>
+            </div>
+            <div className="grid grid-cols-8 gap-1.5 w-full">
+              {Array.from({ length: 8 }).map((_, idx) => {
+                const active = [3, 1, 6].includes(idx); // visual positions scaled to 8
                 return (
-                  <div 
-                    key={idx} 
-                    className={cn(
-                      "concept-bit-cell aspect-square border border-white/5 rounded-lg flex flex-col items-center justify-center bg-white/2 transition-all duration-300",
-                      isActive && "bg-gradient-to-br from-neon-primary to-neon-secondary border-transparent scale-105 shadow-[0_0_10px_rgba(16,185,129,0.4)]"
-                    )}
-                  >
-                    <span className={cn("bit-idx text-[8px] text-muted-foreground mb-0.5", isActive && "text-white/60")}>{idx}</span>
-                    <span className="bit-val font-mono text-sm font-extrabold text-foreground">{val}</span>
+                  <div key={idx} className="flex flex-col items-center gap-1">
+                    <div className={cn(
+                      "w-full aspect-square rounded-lg border flex items-center justify-center font-mono text-xs font-black transition-all duration-300",
+                      active ? "border-emerald-500/50 bg-emerald-500/15 text-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.3)] scale-110" : "border-white/10 bg-slate-900/60 text-slate-600"
+                    )}>
+                      {active ? '1' : '0'}
+                    </div>
+                    <span className="text-[8px] text-muted-foreground">{idx}</span>
                   </div>
-                )
+                );
               })}
             </div>
+            <p className="text-[10px] text-muted-foreground text-center">Bits at positions 1, 3, 6 flipped to 1. <strong className="text-white">"apple" itself is never stored!</strong></p>
           </div>
-          <p className="text-sm md:text-base leading-relaxed text-muted-foreground">
-            Notice that we don't store "apple" anywhere. We only flipped the bits at indices 2 and 5 to 1!
-          </p>
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="p-2.5 rounded-xl border border-emerald-500/20 bg-emerald-500/5">
+              <span className="font-black text-emerald-400 block mb-1">✅ What's saved</span>
+              <span className="text-muted-foreground">Just 3 flipped bits. The word itself is gone.</span>
+            </div>
+            <div className="p-2.5 rounded-xl border border-red-500/20 bg-red-500/5">
+              <span className="font-black text-red-400 block mb-1">❌ What's NOT saved</span>
+              <span className="text-muted-foreground">You can never get "apple" back from the filter.</span>
+            </div>
+          </div>
         </div>
       )
     },
     {
-      title: '6. Querying & False Positives',
+      title: '5. Querying — "Is This Username Taken?"',
       icon: AlertCircle,
       iconColor: 'text-neon-danger',
       content: (
         <div className="concept-slide-content flex flex-col gap-4 animate-slide-up">
           <p className="text-sm md:text-base leading-relaxed text-muted-foreground">
-            To check if an item exists, check the bits at its hash indices:
+            To check if "apple" is in the filter: hash it → get indices → check those bits. Two possible results:
           </p>
-          <ul className="concept-list list-disc pl-5 flex flex-col gap-1.5 text-sm md:text-base text-muted-foreground">
-            <li>If <strong>any</strong> of the bits is <strong>0</strong>, the item is <strong>100% Definite No</strong> (it was never inserted).</li>
-            <li>If <strong>all</strong> bits are <strong>1</strong>, the item is <strong>Maybe Yes</strong>.</li>
-          </ul>
-          <div className="concept-visual bg-black/20 border border-white/5 rounded-2xl p-5 flex flex-col items-stretch justify-center gap-3 mt-2 select-none">
-            <div className="false-positive-card p-4 rounded-xl border border-red-500/20 bg-red-500/5 text-xs md:text-sm leading-relaxed text-foreground text-left">
-              <span className="bg-red-500/10 text-red-400 border border-red-500/25 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider mb-2 inline-block">
-                False Positive Demo
-              </span>
-              <p className="mt-1">
-                If you query <span className="font-mono text-neon-secondary font-extrabold">"banana"</span> (hashes: 2, 5), the filter says "Yes" even if you never inserted it, because those bits were already flipped by "apple"! This is a <strong>False Positive</strong>.
-              </p>
+          <div className="flex flex-col gap-3 select-none">
+            <div className="p-3.5 rounded-xl border border-red-500/25 bg-red-500/5 flex gap-3 items-start">
+              <span className="text-2xl shrink-0">🚫</span>
+              <div>
+                <span className="font-black text-red-400 text-sm block mb-1">DEFINITELY NOT in set</span>
+                <span className="text-xs text-muted-foreground leading-relaxed">If <strong className="text-white">any</strong> of the checked bits is <code className="bg-white/10 px-1 rounded">0</code> — the item was 100% never inserted. No need to check the database!</span>
+              </div>
             </div>
+            <div className="p-3.5 rounded-xl border border-amber-500/25 bg-amber-500/5 flex gap-3 items-start">
+              <span className="text-2xl shrink-0">🤔</span>
+              <div>
+                <span className="font-black text-amber-400 text-sm block mb-1">PROBABLY in set (go check DB)</span>
+                <span className="text-xs text-muted-foreground leading-relaxed">If <strong className="text-white">all</strong> bits are <code className="bg-white/10 px-1 rounded">1</code> — it was probably inserted. But could be a <strong className="text-amber-300">false positive</strong>! Query the real database to confirm.</span>
+              </div>
+            </div>
+          </div>
+          <div className="p-3 rounded-xl border border-neon-warning/20 bg-neon-warning/5 text-xs leading-relaxed text-muted-foreground">
+            💡 <strong className="text-white">False Positive Example:</strong> "mango" never inserted, but its hash positions (3, 9) were already flipped by "apple". Filter says "maybe yes!" — this is the trade-off for speed and tiny memory.
           </div>
         </div>
       )
-    }
+    },
+    {
+      title: '6. Tuning with k — The Sweet Spot',
+      icon: Layers,
+      iconColor: 'text-neon-secondary',
+      content: (
+        <div className="concept-slide-content flex flex-col gap-3 animate-slide-up">
+          <p className="text-xs md:text-sm leading-relaxed text-muted-foreground">
+            How many hash functions (k) should you use? Too few → easy overlaps. Too many → array fills up fast → everything looks like a hit. Drag the slider to find the sweet spot:
+          </p>
+          <KHashInteractiveWidget />
+        </div>
+      )
+    },
+    {
+      title: '7. Where Bloom Filters Are Used in the Wild',
+      icon: Database,
+      iconColor: 'text-neon-primary',
+      content: (
+        <div className="concept-slide-content flex flex-col gap-3.5 animate-slide-up">
+          <p className="text-sm md:text-base leading-relaxed text-muted-foreground">
+            Bloom Filters are everywhere in production systems — anywhere you need a <strong className="text-white">fast "definitely not" check</strong> before doing expensive work:
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+            {[
+              { name: 'Google Chrome', emoji: '🌐', color: 'border-blue-500/20 bg-blue-500/5 text-blue-400', desc: 'Used in Safe Browsing to check if a URL is malicious without sending every URL to Google\'s servers.' },
+              { name: 'Cassandra / HBase', emoji: '🗄️', color: 'border-emerald-500/20 bg-emerald-500/5 text-emerald-400', desc: 'Databases use bloom filters to skip reading SSTables for keys that definitely don\'t exist — huge I/O savings.' },
+              { name: 'Akamai CDN', emoji: '⚡', color: 'border-orange-500/20 bg-orange-500/5 text-orange-400', desc: 'Avoids storing one-hit-wonder URLs in cache by filtering items seen only once before caching them.' },
+              { name: 'Bitcoin', emoji: '₿', color: 'border-yellow-500/20 bg-yellow-500/5 text-yellow-400', desc: 'Lightweight wallet clients use bloom filters to ask full nodes for transactions without revealing which addresses belong to you.' },
+            ].map(item => (
+              <div key={item.name} className={`p-3 rounded-xl border ${item.color} flex flex-col gap-1`}>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-base">{item.emoji}</span>
+                  <span className={`text-xs font-extrabold ${item.color.split(' ')[2]}`}>{item.name}</span>
+                </div>
+                <p className="text-[10px] text-muted-foreground leading-relaxed">{item.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )
+    },
   ]
 
   const ActiveIcon = slides[currentSlide].icon
 
   return (
-    <Card 
+    <Card
       glass
-      className="concept-container p-6 rounded-2xl border-white/5 bg-slate-950/60 flex flex-col gap-6 min-h-[480px]"
+      className="concept-container p-6 rounded-2xl border-white/5 bg-slate-950/60 flex flex-col gap-6 min-h-[520px]"
     >
       {/* ProgressBar */}
-      <div className="concept-progress-bar flex justify-center gap-2 select-none">
+      <div className="concept-progress-bar flex justify-center gap-1.5 select-none">
         {slides.map((_, idx) => (
-          <div 
-            key={idx} 
+          <div
+            key={idx}
             className={cn(
-              "progress-step-dot h-1.5 flex-1 max-w-[50px] bg-white/10 rounded-full cursor-pointer transition-all duration-300",
+              "progress-step-dot h-1.5 flex-1 max-w-[40px] bg-white/10 rounded-full cursor-pointer transition-all duration-300",
               idx === currentSlide && "bg-neon-primary shadow-[0_0_8px_rgba(16,185,129,0.5)]",
               idx < currentSlide && "bg-neon-secondary"
             )}
@@ -324,12 +380,13 @@ export const BloomFilterConcept: React.FC<BloomFilterConceptProps> = ({ onComple
       {/* Main Slide Card */}
       <div className="concept-card flex-1 flex flex-col gap-4">
         <div className="slide-title-wrapper flex items-center gap-3 border-b border-white/5 pb-3.5">
-          <ActiveIcon size={24} className={cn(slides[currentSlide].iconColor)} />
+          <ActiveIcon size={22} className={cn(slides[currentSlide].iconColor)} />
           <h2 className="slide-title text-base md:text-lg font-extrabold text-foreground tracking-tight">
             {slides[currentSlide].title}
           </h2>
+          <span className="ml-auto text-[10px] text-muted-foreground font-bold shrink-0">{currentSlide + 1} / {slides.length}</span>
         </div>
-        
+
         <div className="slide-content-wrapper flex-1 text-sm md:text-base leading-relaxed">
           {slides[currentSlide].content}
         </div>
@@ -337,9 +394,9 @@ export const BloomFilterConcept: React.FC<BloomFilterConceptProps> = ({ onComple
 
       {/* Control Buttons */}
       <div className="concept-controls flex justify-between mt-2 select-none">
-        <Button 
+        <Button
           variant="outline"
-          className="w-full max-w-[150px] rounded-xl h-11 border-white/5 bg-white/3"
+          className="w-full max-w-[150px] rounded-xl h-11 border-white/5 bg-white/3 font-bold text-foreground cursor-pointer"
           disabled={currentSlide === 0}
           onClick={() => setCurrentSlide(prev => prev - 1)}
         >
@@ -348,18 +405,18 @@ export const BloomFilterConcept: React.FC<BloomFilterConceptProps> = ({ onComple
         </Button>
 
         {currentSlide === slides.length - 1 ? (
-          <Button 
-            variant="neon" 
-            className="w-full max-w-[160px] rounded-xl h-11"
+          <Button
+            variant="neon"
+            className="w-full max-w-[160px] rounded-xl h-11 cursor-pointer"
             onClick={onComplete}
           >
-            <span>Simulator</span>
-            <ArrowRight size={18} />
+            <span>Try Simulator</span>
+            <Zap size={16} />
           </Button>
         ) : (
-          <Button 
-            variant="neon" 
-            className="w-full max-w-[150px] rounded-xl h-11"
+          <Button
+            variant="neon"
+            className="w-full max-w-[150px] rounded-xl h-11 cursor-pointer"
             onClick={() => setCurrentSlide(prev => prev + 1)}
           >
             <span>Next</span>

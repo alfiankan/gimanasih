@@ -4,6 +4,8 @@ import { ExplorePage } from './pages/ExplorePage'
 import { MaterialsPage } from './pages/MaterialsPage'
 import { BloomFilterLesson } from './pages/BloomFilterLesson'
 import { RaftLesson } from './pages/RaftLesson'
+import { BinarySearchLesson } from './pages/BinarySearchLesson'
+import { DotProductLesson } from './pages/DotProductLesson'
 import { Award, Lock, Zap, BookOpen, Brain } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
@@ -197,6 +199,28 @@ function App() {
         />
       )
     }
+    if (activeTab === 'lesson-binary-search') {
+      return (
+        <BinarySearchLesson
+          onBack={() => setActiveTab('materials')}
+          onPass={() => markBadgeAsUnlocked('binary-search')}
+          currentXp={xp}
+          onGainXp={(amount) => setXp(prev => prev + amount)}
+          isLoggedIn={isLoggedIn}
+        />
+      )
+    }
+    if (activeTab === 'lesson-dot-product') {
+      return (
+        <DotProductLesson
+          onBack={() => setActiveTab('materials')}
+          onPass={() => markBadgeAsUnlocked('dot-product')}
+          currentXp={xp}
+          onGainXp={(amount) => setXp(prev => prev + amount)}
+          isLoggedIn={isLoggedIn}
+        />
+      )
+    }
     if (activeTab === 'account') {
       if (!isLoggedIn || !user) {
         return (
@@ -277,13 +301,13 @@ function App() {
             
             <Card glass className="p-4 flex flex-col items-center justify-center text-center gap-1 border-white/5 hover:border-amber-500/20 transition-all duration-300">
               <Award size={22} className="text-amber-500 mb-1" />
-              <span className="text-lg font-black text-foreground">{unlockedBadges.length} / 2</span>
+              <span className="text-lg font-black text-foreground">{unlockedBadges.length} / 4</span>
               <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Badges</span>
             </Card>
             
             <Card glass className="p-4 flex flex-col items-center justify-center text-center gap-1 border-white/5 hover:border-neon-primary/20 transition-all duration-300">
               <BookOpen size={22} className="text-neon-primary mb-1" />
-              <span className="text-lg font-black text-foreground">2 / 2</span>
+              <span className="stat-value text-base font-extrabold text-foreground">4 / 4</span>
               <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Active</span>
             </Card>
           </div>
@@ -386,6 +410,75 @@ function App() {
                 )
               })()}
             </div>
+
+              {/* Binary Search Badge */}
+              {(() => {
+                const isUnlocked = unlockedBadges.includes('binary-search')
+                return (
+                  <Card
+                    glass={isUnlocked}
+                    className={cn(
+                      "badge-card p-5 flex flex-col items-center text-center gap-4 transition-all duration-300 relative overflow-hidden",
+                      isUnlocked
+                        ? "border-amber-500/30 bg-gradient-to-br from-card to-amber-500/5 hover:-translate-y-1 hover:border-amber-500/50"
+                        : "opacity-40 bg-muted/20 border-border/40 hover:opacity-50"
+                    )}
+                  >
+                    <div className={cn(
+                      "w-16 h-16 rounded-full flex items-center justify-center border transition-all duration-300",
+                      isUnlocked ? "bg-amber-500/10 text-amber-500 border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.2)]" : "bg-white/2 text-muted-foreground border-border/80"
+                    )}>
+                      {isUnlocked ? <Award size={32} className="animate-pulse" /> : <Lock size={26} />}
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <h3 className="text-sm font-bold text-foreground">Binary Search Pro</h3>
+                      <p className="text-xs text-muted-foreground leading-relaxed">Master O(log n) search, mid calculation, and pointer mechanics.</p>
+                    </div>
+                    <div className="mt-auto pt-2">
+                      {isUnlocked ? (
+                        <span className="bg-amber-500/15 text-amber-400 border border-amber-500/25 px-2.5 py-1 rounded-lg text-[10px] font-bold tracking-wider uppercase">Earned</span>
+                      ) : (
+                        <span className="bg-white/5 text-muted-foreground border border-border/50 px-2.5 py-1 rounded-lg text-[10px] font-bold tracking-wider uppercase inline-flex items-center gap-1"><Lock size={10} /> Locked</span>
+                      )}
+                    </div>
+                  </Card>
+                )
+              })()}
+
+              {/* Dot Product Badge */}
+              {(() => {
+                const isUnlocked = unlockedBadges.includes('dot-product')
+                return (
+                  <Card
+                    glass={isUnlocked}
+                    className={cn(
+                      "badge-card p-5 flex flex-col items-center text-center gap-4 transition-all duration-300 relative overflow-hidden",
+                      isUnlocked
+                        ? "border-amber-500/30 bg-gradient-to-br from-card to-amber-500/5 hover:-translate-y-1 hover:border-amber-500/50"
+                        : "opacity-40 bg-muted/20 border-border/40 hover:opacity-50"
+                    )}
+                  >
+                    <div className={cn(
+                      "w-16 h-16 rounded-full flex items-center justify-center border transition-all duration-300",
+                      isUnlocked ? "bg-amber-500/10 text-amber-500 border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.2)]" : "bg-white/2 text-muted-foreground border-border/80"
+                    )}>
+                      {isUnlocked ? <Award size={32} className="animate-pulse" /> : <Lock size={26} />}
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <h3 className="text-sm font-bold text-foreground">Dot Product Master</h3>
+                      <p className="text-xs text-muted-foreground leading-relaxed">Master FOV cones, angle detection, and vector math used in games and ML.</p>
+                    </div>
+                    <div className="mt-auto pt-2">
+                      {isUnlocked ? (
+                        <span className="bg-amber-500/15 text-amber-400 border border-amber-500/25 px-2.5 py-1 rounded-lg text-[10px] font-bold tracking-wider uppercase">Earned</span>
+                      ) : (
+                        <span className="bg-white/5 text-muted-foreground border border-border/50 px-2.5 py-1 rounded-lg text-[10px] font-bold tracking-wider uppercase inline-flex items-center gap-1"><Lock size={10} /> Locked</span>
+                      )}
+                    </div>
+                  </Card>
+                )
+              })()}
+          </div>
           </div>
         </div>
       )

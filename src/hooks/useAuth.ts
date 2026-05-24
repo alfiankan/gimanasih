@@ -14,7 +14,7 @@ export interface ProgressData {
 }
 
 const API_URL = import.meta.env.PROD
-  ? 'https://gimanasih-backend.alfian-nur.workers.dev'
+  ? 'https://gimanasih-backend.alfiankan19.workers.dev'
   : 'http://localhost:8787';
 
 export const useAuth = () => {

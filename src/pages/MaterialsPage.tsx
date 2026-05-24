@@ -38,6 +38,27 @@ const COURSES_DATA: FolderItem[] = [
         xp: 500
       }
     ]
+  },
+  {
+    id: 'algorithms',
+    name: 'Algorithms',
+    type: 'folder',
+    children: [
+      {
+        id: 'binary-search',
+        name: 'Binary Search',
+        type: 'file',
+        status: 'Not Started',
+        xp: 250
+      },
+      {
+        id: 'dot-product',
+        name: 'Dot Product',
+        type: 'file',
+        status: 'Not Started',
+        xp: 300
+      }
+    ]
   }
 ]
 
